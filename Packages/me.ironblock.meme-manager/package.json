@@ -1,0 +1,18 @@
+{
+  "name": "me.ironblock.meme-manager",
+  "displayName": "MemeManager",
+  "version": "0.0.1",
+  "unity": "2019.4",
+  "type": "tool",
+  "vrchatVersion": "2022.1.1",
+  "author": {
+    "name": "Momo the Monster",
+    "email": "momodmonster@gmail.com",
+    "url": "https://mmmlabs.com"
+  },
+  "unityRelease": "31f1",
+  "description": "A tool that can make it easy to add memes to an avatar.",
+  "dependencies": {
+    "com.vrchat.avatars": "3.2.1"
+  }
+}

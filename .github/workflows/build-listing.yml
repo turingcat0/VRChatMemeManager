@@ -1,7 +1,7 @@
 name: Build Repo Listing
 
 env:
-  CurrentPackageName: com.vrchat.demo-template
+  CurrentPackageName: me.ironblock.meme-manager
   listPublishDirectory: Website
   pathToCi: ci
   

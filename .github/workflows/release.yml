@@ -4,10 +4,10 @@ on:
   workflow_dispatch:
   push:
     branches: main
-    paths: Packages/com.vrchat.demo-template/**
+    paths: Packages/me.ironblock.meme-manager/**
 
 env:
-  packageName: "com.vrchat.demo-template"
+  packageName: "me.ironblock.meme-manager"
 
 permissions:
   contents: write
