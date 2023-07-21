@@ -15,6 +15,9 @@ namespace VRCMemeManager
 
         private Vector2 mainScrollPos;
 
+        private int textureAlatlasSize = 4;
+        private const int minTextureAlatlasSize = 6;
+
         private GameObject avatar;
         private MemeManagerParameter parameter;
         private string avatarId;
@@ -70,12 +73,13 @@ namespace VRCMemeManager
             }
             else if (parameter == null)
             {
-                MoyuToolkitUtils.Print("创建了新的配置文件");
                 parameter = MemeManagerUtils.CreateMemeManagerParameter(avatar);
                 ReadParameter();
             }
             else
             {
+                textureAlatlasSize = EditorGUILayout.IntField("表情包贴图质量(越高越好)：", textureAlatlasSize);
+
                 mainScrollPos = GUILayout.BeginScrollView(mainScrollPos);
                 // 主UI
                 EditorGUI.BeginChangeCheck();
@@ -90,7 +94,7 @@ namespace VRCMemeManager
                     foreach (var info in memeItemList)
                         memeNameList.Add(info.name);
                     // 遍历信息
-                    EditorGUILayout.LabelField("动作列表：");
+                    EditorGUILayout.LabelField("表情包列表：");
                     var classify = MemeManagerUtils.HasClassify(memeItemList);
                     for (var index = 0; index < sum; index++)
                     {
@@ -117,6 +121,7 @@ namespace VRCMemeManager
                             EditorGUILayout.BeginHorizontal();
                             info.memeTexture = (Texture2D)EditorGUILayout.ObjectField("", info.memeTexture, typeof(Texture2D), true, GUILayout.Width(60), GUILayout.Height(60));
                             GUILayout.Space(5);
+                            
                             EditorGUILayout.BeginVertical();
 
                             //操作按钮
@@ -151,6 +156,12 @@ namespace VRCMemeManager
                             EditorGUILayout.BeginVertical();
                             EditorGUILayout.LabelField("分类", GUILayout.Width(55));
                             info.type = EditorGUILayout.TextField(info.type).Trim();
+                            info.keepAspectRatio = EditorGUILayout.Toggle("保持长宽比：", info.keepAspectRatio);
+                            info.isGIF = EditorGUILayout.Toggle("是否为动图：", info.isGIF);
+                            if (info.isGIF)
+                            {
+                                info.fps = EditorGUILayout.IntField("动图的帧数：", info.fps);
+                            }
                             EditorGUILayout.EndVertical();
                             EditorGUILayout.EndHorizontal();
 
@@ -186,8 +197,17 @@ namespace VRCMemeManager
                 GUILayout.Space(5);
                 GUILayout.BeginHorizontal();
 
-                if (GUILayout.Button("一键应用到模型"))
-                    MemeManagerUtils.ApplyToAvatar(avatar, parameter);
+                if (GUILayout.Button("一键应用到模型")) 
+                {
+                    if (sum >= maxMemeNum)
+                    {
+                        EditorGUILayout.HelpBox("最多只能添加" + maxMemeNum + "个表情包", MessageType.Info);
+                    }
+                    else { 
+                        MemeManagerUtils.ApplyToAvatar(avatar, parameter, (int)Math.Pow(2.0, textureAlatlasSize + minTextureAlatlasSize));
+                    }
+                
+                }
 
                 GUILayout.EndHorizontal();
                 GUILayout.Space(10);

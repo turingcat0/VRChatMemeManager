@@ -17,15 +17,21 @@ namespace VRCMemeManager
             public string name; //唯一名称
             public string type; //分类
             public Texture2D memeTexture; //表情包
+            public bool isGIF;
+            public int fps;
+            public bool keepAspectRatio;
+
             public MemeInfo() { }
 #if UNITY_EDITOR
 
-            //Copy Constructor
             public MemeInfo(MemeManagerUtils.MemeItemInfo info)
             {
                 name = info.name;
                 type = info.type;
                 memeTexture = info.memeTexture;
+                isGIF = info.isGIF;
+                fps = info.fps;
+                keepAspectRatio = info.keepAspectRatio;
             }
 #endif
         }

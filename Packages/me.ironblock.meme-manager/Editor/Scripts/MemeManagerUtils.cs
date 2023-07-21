@@ -19,6 +19,9 @@ namespace VRCMemeManager
             public string name;
             public string type;
             public Texture2D memeTexture;
+            public bool isGIF;
+            public int fps;
+            public bool keepAspectRatio;
 
             public AnimBool animBool = new AnimBool { speed = 3.0f };
 
@@ -32,6 +35,9 @@ namespace VRCMemeManager
                 name = info.name;
                 type = info.type;
                 memeTexture = info.memeTexture;
+                isGIF = info.isGIF;
+                fps = info.fps;
+                keepAspectRatio = info.keepAspectRatio;
             }
         }
 
@@ -88,9 +94,8 @@ namespace VRCMemeManager
         }
 
         // 应用到模型
-        internal static void ApplyToAvatar(GameObject avatar, MemeManagerParameter parameter)
+        internal static void ApplyToAvatar(GameObject avatar, MemeManagerParameter parameter, int textureAlatlasSize)
         {
-            MoyuToolkitUtils.ClearConsole();
             var memeList = new List<MemeManagerParameter.MemeInfo>();
             var _memeList = parameter.memeList;
             foreach (var info in _memeList)
@@ -117,42 +122,56 @@ namespace VRCMemeManager
 
             //准备目录
             var memeAnimDir = dirPath + "Anim/MemeManager/";
-            var memeTextureDir = dirPath + "Texture/MemeManager/";
             if (Directory.Exists(memeAnimDir))
                 Directory.Delete(memeAnimDir, true);
             Directory.CreateDirectory(memeAnimDir);
             memeAnimDir += "/";
-            if (Directory.Exists(memeTextureDir))
-                Directory.Delete(memeTextureDir, true);
-            Directory.CreateDirectory(memeTextureDir);
-            memeTextureDir += "/";
-            //创建表情包贴图
-            Dictionary<string, int> nameIndexMap = new Dictionary<string, int>();
-            Texture2D alatlas = new Texture2D(2048, 2048, TextureFormat.RGBA32, true);
-            int index = 0;
-            foreach (var info in memeList)
+            //检查表情包贴图可读性
+            foreach (var item in memeList)
             {
-                var path = AssetDatabase.GetAssetPath(info.memeTexture);
-                if (path.Contains(".gif"))
+                if (!item.memeTexture.isReadable)
                 {
-                    Debug.Log("path is a gif:" + path);
+                    Debug.Log(AssetDatabase.GetAssetPath(item.memeTexture) + "的表情包没有设置为脚本可读写, 请修改贴图的导入设置");
                 }
 
-                int width = info.memeTexture.width;
-                int height = info.memeTexture.height;
-                Color32[] pixels = info.memeTexture.GetPixels32();
-                Color32[] result = new Color32[512 * 512];
-                ScaleTo512x512(pixels, width, height, result);
-                alatlas.SetPixels32((index % 4) * 512, (index / 4) * 512, 512, 512, result);
+            }
+
+
+            //创建表情包贴图
+            Dictionary<string, int> nameIndexMap = new Dictionary<string, int>();
+            Texture2D alatlas = new Texture2D(textureAlatlasSize, textureAlatlasSize, TextureFormat.RGBA32, true);
+            int index = 0;
+            Dictionary<string, int> gifNameFramesCountMap = new Dictionary<string, int>();
+            Dictionary<string, int> nameArrayIndexMap = new Dictionary<string, int>();
+            List<Texture2D> texture2DList = new List<Texture2D>();
+
+            foreach (var info in memeList)
+            {
+                nameArrayIndexMap.Add(info.name, texture2DList.Count);
                 nameIndexMap.Add(info.name, index);
                 index++;
+                if (info.isGIF)
+                {
+                    var path = AssetDatabase.GetAssetPath(info.memeTexture);
+                    Debug.Log(path);
+                    texture2DList.Add(info.memeTexture);
+                    gifNameFramesCountMap.Add(info.name, 1);//TODO: 改掉
+                }
+                else
+                {
+                    texture2DList.Add(info.memeTexture);
+                }
             }
-            alatlas.Apply(true, false);
+            Rect[] alatlasRects = alatlas.PackTextures(texture2DList.ToArray(), 0, textureAlatlasSize, false);
+            var textureDir = dirPath + "/Textures/MemeManager";
+            if (Directory.Exists(textureDir))
+                Directory.Delete(textureDir, true);
+            Directory.CreateDirectory(textureDir);
+            textureDir += "/textureAlatlas.asset";
             alatlas.Compress(false);
-
-            AssetDatabase.CreateAsset(alatlas, memeTextureDir + "MemeAlatlas.asset");
-
+            AssetDatabase.CreateAsset(alatlas, textureDir);
             AssetDatabase.Refresh();
+
             //设置材质
             var mat = Resources.Load<Material>("Materials/MemeEmitterMaterial");
             particleSystem.GetComponent<ParticleSystemRenderer>().material = mat;
@@ -263,15 +282,20 @@ namespace VRCMemeManager
 
             //Anim States
             Dictionary<string, AnimatorState> nameAnimStateMap = new Dictionary<string, AnimatorState>();
-            foreach (var item in nameIndexMap)
+            foreach (var item in memeList)
             {
 
-                int row = Mathf.FloorToInt(item.Value / 4);
-                var curveU1 = new AnimationCurve(new Keyframe[] { new Keyframe(0, (item.Value % 4) * 0.25f), new Keyframe(1f, (item.Value % 4) * 0.25f) });
-                var curveU2 = new AnimationCurve(new Keyframe[] { new Keyframe(0, ((item.Value % 4) + 1) * 0.25f), new Keyframe(1f, ((item.Value % 4) + 1) * 0.25f) });
-                var curveV1 = new AnimationCurve(new Keyframe[] { new Keyframe(0, (row * 0.25f)), new Keyframe(1f, (row * 0.25f)) });
-                var curveV2 = new AnimationCurve(new Keyframe[] { new Keyframe(0, ((row + 1) * 0.25f)), new Keyframe(1f, ((row + 1) * 0.25f)) });
-                AnimationClip animationClip = new AnimationClip { name = "Anim" + item.Value };
+                float u1 = alatlasRects[nameArrayIndexMap[item.name]].xMin;
+                float v1 = alatlasRects[nameArrayIndexMap[item.name]].yMin;
+                float u2 = alatlasRects[nameArrayIndexMap[item.name]].xMax;
+                float v2 = alatlasRects[nameArrayIndexMap[item.name]].yMax;
+                float aspectRatio = item.keepAspectRatio ? (v2 - v1) / (u2 - u1) : 1;
+                var curveU1 = new AnimationCurve(new Keyframe[] { new Keyframe(0, u1), new Keyframe(0.0166666666666667f, u1) });
+                var curveU2 = new AnimationCurve(new Keyframe[] { new Keyframe(0, u2), new Keyframe(0.0166666666666667f, u2) });
+                var curveV1 = new AnimationCurve(new Keyframe[] { new Keyframe(0, v1), new Keyframe(0.0166666666666667f, v1) });
+                var curveV2 = new AnimationCurve(new Keyframe[] { new Keyframe(0, v2), new Keyframe(0.0166666666666667f, v2) });
+                var curveRatio = new AnimationCurve(new Keyframe[] { new Keyframe(0, aspectRatio), new Keyframe(0.0166666666666667f, aspectRatio) });
+                AnimationClip animationClip = new AnimationClip { name = "Anim" + item.name };
                 EditorCurveBinding bindU1 = new EditorCurveBinding
                 {
                     path = "MemeEmitter",
@@ -296,20 +320,27 @@ namespace VRCMemeManager
                     propertyName = "material._TextureV2",
                     type = typeof(ParticleSystemRenderer)
                 };
+                EditorCurveBinding bindAspectRatio = new EditorCurveBinding
+                {
+                    path = "MemeEmitter",
+                    propertyName = "material._AspectRatio",
+                    type = typeof(ParticleSystemRenderer)
+                };
                 AnimationUtility.SetEditorCurve(animationClip, bindU1, curveU1);
                 AnimationUtility.SetEditorCurve(animationClip, bindU2, curveU2);
                 AnimationUtility.SetEditorCurve(animationClip, bindV1, curveV1);
                 AnimationUtility.SetEditorCurve(animationClip, bindV2, curveV2);
+                AnimationUtility.SetEditorCurve(animationClip, bindAspectRatio, curveRatio);
                 var settting = AnimationUtility.GetAnimationClipSettings(animationClip);
                 settting.loopTime = true;
                 AnimationUtility.SetAnimationClipSettings(animationClip, settting);
-                AssetDatabase.CreateAsset(animationClip, memeAnimDir + "Anim" + item.Value + ".anim");
+                AssetDatabase.CreateAsset(animationClip, memeAnimDir + "Anim" + item.name + ".anim");
 
 
 
-                var animState = stateMachineUV.AddState("Anim" + item.Value);
+                var animState = stateMachineUV.AddState("Anim" + item.name);
                 animState.motion = animationClip;
-                nameAnimStateMap[item.Key] = animState;
+                nameAnimStateMap[item.name] = animState;
             }
             AssetDatabase.Refresh();
             //Transitions
@@ -523,54 +554,5 @@ namespace VRCMemeManager
             EditorUtility.DisplayDialog("提醒", "应用成功，快上传模型测试下效果吧~", "确认");
         }
 
-
-        /***将input图像缩放到512x512并放到output里***/
-        private static void ScaleTo512x512(in Color32[] input, int inputWidth, int inputHeight, Color32[] output)
-        {
-            for (int i = 0; i < 512; i++)
-            {
-                for (int j = 0; j < 512; j++)
-                {
-                    float xInput = i * (inputWidth - 1) / 512.0f;
-                    float yInput = j * (inputHeight - 1) / 512.0f;
-                    int xInputFloor = (int)Mathf.Floor(xInput);
-                    int yInputFloor = (int)Mathf.Floor(yInput);
-                    int xInputCeil = xInputFloor + 1;
-                    int yInputCeil = yInputFloor + 1;
-                    float xDelta = xInput - xInputFloor;
-                    float yDelta = yInput - yInputFloor;
-                    try
-                    {
-                        //bilinear
-                        Color32 x1 = add(mul(input[yInputFloor * inputWidth + xInputFloor], (1 - xDelta)),
-                            mul(input[(yInputFloor * inputWidth) + xInputCeil], (xDelta)));
-                        Color32 x2 = add(mul(input[yInputCeil * inputWidth + xInputFloor], (1 - xDelta)),
-                            mul(input[(yInputCeil * inputWidth) + xInputCeil], (xDelta)));
-                        output[j * 512 + i] = add(mul(x1, (1 - yDelta)), mul(x2, (yDelta)));
-                    }
-                    catch (System.IndexOutOfRangeException)
-                    {
-                        Debug.Log("index out of bound:" + "i:" + i + ",j:" + j + ",inputWidth:" + inputWidth + ", inputHeight:" + inputHeight
-                            + ",xInput:" + xInput + ",yInput:" + yInput + ",xInputFloor:" + xInputFloor + ",yInputFloor:" + yInputFloor
-                            + ",xInputCeil:" + xInputCeil + ",yInputCeil:" + yInputCeil
-                            + ",xDelta:" + xDelta + ",yDelta:" + yDelta
-                            );
-                    }
-                }
-            }
-
-
-
-        }
-
-
-        public static Color32 mul(Color32 color, float f)
-        {
-            return new Color32((byte)(color.r * f), (byte)(color.g * f), (byte)(color.b * f), (byte)(color.a * f));
-        }
-        public static Color32 add(Color32 color1, Color32 color2)
-        {
-            return new Color32((byte)(color1.r + color2.r), (byte)(color1.g + color2.g), (byte)(color1.b + color2.b), (byte)(color1.a + color2.a));
-        }
     }
 }

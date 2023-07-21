@@ -13,110 +13,7 @@ namespace VRCMemeManager
 {
     public class MoyuToolkitUtils
     {
-        /* ============================================== 控制台 ============================================== */
-        public static void Print(params object[] strs)
-        {
-            string log = "";
-            foreach (var str in strs)
-            {
-                if (log.Length > 0)
-                {
-                    log += " ";
-                }
-                log += str ?? "null";
-            }
-            Debug.Log(log);
-        }
-
-        private static MethodInfo clearMethod;
-        public static void ClearConsole()
-        {
-            if (clearMethod == null)
-            {
-                Type log = typeof(EditorWindow).Assembly.GetType("UnityEditor.LogEntries");
-                clearMethod = log.GetMethod("Clear");
-            }
-            clearMethod.Invoke(null, null);
-        }
-
-        /*public static void LookGameObject(GameObject gameObject)
-        {
-            var view = SceneView.lastActiveSceneView;
-            view.rotation = Quaternion.Euler(new Vector3(20, 180, 0));
-            view.Repaint();
-
-            Selection.activeGameObject = gameObject;
-            SceneView.lastActiveSceneView.FrameSelected();
-        }*/
-
-        /* ============================================== 获取工具 ============================================== */
-        public static string GetAssetsPath(string path = null)
-        {
-            /*var _path = AssetDatabase.GetAssetPath(MonoScript.FromScriptableObject(ScriptableObject.CreateInstance<MoyuToolkit>()));
-            _path = _path.Substring(0, _path.LastIndexOf("/"));
-            _path = _path.Substring(0, _path.LastIndexOf("/") + 1);*/
-            var _path = "Packages/cc.moyuer.avatartoolkit/Editor/";
-            if (path != null)
-            {
-                while (path.StartsWith("/"))
-                    path = path.Substring(1);
-                _path += path;
-            }
-            return _path;
-        }
-
-        public static Dictionary<string, GameObject> GetHumanBoneFromName(GameObject gameObject, string[] boneNames)
-        {
-            var result = new Dictionary<string, GameObject>();
-            foreach (var boneName in boneNames)
-            {
-                GameObject obj;
-                try
-                {
-                    obj = GetHumanBoneFromName(gameObject, boneName);
-                }
-                catch (Exception e)
-                {
-                    Print(e);
-                    obj = null;
-                }
-                result.Add(boneName, obj);
-            }
-            return result;
-        }
-        public static GameObject GetHumanBoneFromName(GameObject gameObject, string boneName)
-        {
-            var animator = gameObject.GetComponent<Animator>();
-            if (animator == null)
-                throw new Exception("在根路径下找不到Animator组件");
-            var bone = (HumanBodyBones)Enum.Parse(typeof(HumanBodyBones), boneName);
-            var boneTran = animator.GetBoneTransform(bone);
-            if (boneTran == null)
-                throw new Exception("找不到对应骨骼\"" + bone.ToString() + "\",请检查模型Animator组件是否有Avatar参数、FBX文件的Rig-AnimationType参数是否为Human，以及相应骨骼是否配置。");
-            return boneTran.gameObject;
-        }
-        public static string GetFileType(string path)
-        {
-            var strs = path.Split('.');
-            var type = strs[strs.Length - 1];
-            return type.ToLower();
-        }
-
-      
-
-        /* ============================================== 工具 ============================================== */
-
-        public static List<T> LinkGameObjectList<T>(List<T> list1, List<T> list2)
-        {
-            List<T> newList = new List<T>();
-            foreach (var obj in list1)
-                if (obj != null && !newList.Contains(obj))
-                    newList.Add(obj);
-            foreach (var obj in list2)
-                if (obj != null && !newList.Contains(obj))
-                    newList.Add(obj);
-            return newList;
-        }
+       
         public static void CopyFolder(string sourcePath, string destPath)
         {
             if (Directory.Exists(sourcePath))
@@ -157,15 +54,7 @@ namespace VRCMemeManager
                 Debug.LogError("复制文件时找不到源文件：" + sourcePath);
             }
         }
-        /*public Texture2D TextureToTexture2D(Texture texture)
-        {
-            Texture2D texture2d = texture as Texture2D;
-            TextureImporter ti = (TextureImporter)AssetImporter.GetAtPath(AssetDatabase.GetAssetPath(texture2d));
-            //图片Read/Write Enable的开关
-            ti.isReadable = true;
-            AssetDatabase.ImportAsset(AssetDatabase.GetAssetPath(texture2d));
-            return texture2d;
-        }*/
+      
 
         private static string CreateRandomCode(int len)
         {
@@ -248,78 +137,6 @@ namespace VRCMemeManager
             }
             if (shouldAddParameters)
                 controller.AddParameter(name, type);
-        }
-        // 只保留字符串内的英文和数字
-        internal static string GetNumberAlpha(string source)
-        {
-            string pattern = "[A-Za-z0-9_]";
-            string strRet = "";
-            MatchCollection results = Regex.Matches(source, pattern);
-            foreach (var v in results)
-            {
-                strRet += v.ToString();
-            }
-            return strRet;
-        }
-
-        public static string GetTransfromPath(GameObject gameObject)
-        {
-            return GetTransfromPath(gameObject.transform);
-        }
-
-        // 获取完整路径
-        public static string GetTransfromPath(Transform transform)
-        {
-            var path = transform.name;
-            while (transform != null)
-            {
-                transform = transform.parent;
-                if (transform == null) return path;
-                path = transform.name + "/" + path;
-            }
-            return path;
-        }
-
-        // 获取Avatar的Armature名称
-        public static string GetAvatarArmatureName(GameObject avatar)
-        {
-            try
-            {
-                return avatar.GetComponent<Animator>().GetBoneTransform(HumanBodyBones.Hips).parent.name;
-            }
-            catch (Exception)
-            {
-                return null;
-            }
-        }
-
-        /* ============================================== 文本读写 ============================================== */
-        public static void WriteTxt(string str, string path)
-        {
-            if (File.Exists(path))
-            {
-                File.Delete(path);
-            }
-            else
-            {
-                path = path.Replace("\\", "/");
-                var dir = path.Substring(0, path.LastIndexOf("/"));
-                if (!Directory.Exists(dir))
-                {
-                    Directory.CreateDirectory(dir);
-                }
-            }
-            var file = File.CreateText(path);
-            file.Write(str);
-            file.Close();
-        }
-        public static string ReadTxt(string path)
-        {
-            if (File.Exists(path))
-            {
-                return File.ReadAllText(path);
-            }
-            return null;
         }
     }
 }

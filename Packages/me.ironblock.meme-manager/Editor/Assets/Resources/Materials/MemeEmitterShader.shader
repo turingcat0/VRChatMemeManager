@@ -7,8 +7,7 @@ Shader "Unlit/MemeEmitterShader"
         _TextureV1("v1", Range(0.0,1.0)) = 0.0
         _TextureU2("u2", Range(0.0,1.0)) = 0.0
         _TextureV2("v2", Range(0.0,1.0)) = 0.0
-        _Frame("frame", Int) = 0
-        _FrameWidth("frameWidth", Float) = 0.25
+        _AspectRatio("aspect", float) = 1.0
     }
     SubShader
     {
@@ -41,22 +40,16 @@ Shader "Unlit/MemeEmitterShader"
             float _TextureV1;
             float _TextureU2;
             float _TextureV2;
-            int _Frame;
-            float _FrameWidth;
+            float _AspectRatio;
 
             v2f vert (appdata v)
             {
                 v2f o;
-                o.vertex = UnityObjectToClipPos(v.vertex);
-                float tmp = (_TextureU1 + _Frame* _FrameWidth);
-                float tmp2 = floor(tmp);
-                float realU1 = tmp - tmp2;
-                float realU2 = realU1 + _FrameWidth;
+                float4 clipPos = UnityObjectToClipPos(v.vertex);
+                clipPos.y *= _AspectRatio;
+                o.vertex = clipPos;
 
-                float realV1 =  (_TextureV1 - tmp2* _FrameWidth);
-                float realV2 =  (_TextureV2 - tmp2* _FrameWidth);
-
-                o.uv = v.uv * float2(realU2,realV2) + (float2(1, 1) - v.uv) * float2(realU1,realV1);
+                o.uv = float2(_TextureU2 * v.uv.x + _TextureU1 * (1 - v.uv.x), _TextureV2 * v.uv.y + _TextureV1 * (1 - v.uv.y));
                 return o;
             }
 
