@@ -154,8 +154,23 @@ namespace VRCMemeManager
                 {
                     var path = AssetDatabase.GetAssetPath(info.memeTexture);
                     Debug.Log(path);
-                    texture2DList.Add(info.memeTexture);
-                    gifNameFramesCountMap.Add(info.name, 1);//TODO: 改掉
+
+                    int num = 0;
+                    string folder = Path.GetDirectoryName(path); // 获取纹理所属的文件夹路径
+                    if (Directory.Exists(folder)) // 判断文件夹是否存在
+                    {
+                        string[] files = Directory.GetFiles(folder); // 获取文件夹中所有png格式的文件名
+                        
+                        foreach (var assetPath in files)
+                        {
+                            if (!assetPath.EndsWith("meta"))
+                            {
+                                texture2DList.Add(AssetDatabase.LoadAssetAtPath<Texture2D>(assetPath));
+                                num++;
+                            }
+                        }
+                    }
+                    gifNameFramesCountMap.Add(info.name, num);
                 }
                 else
                 {
@@ -282,20 +297,9 @@ namespace VRCMemeManager
 
             //Anim States
             Dictionary<string, AnimatorState> nameAnimStateMap = new Dictionary<string, AnimatorState>();
+            Dictionary<string, List<AnimatorState>> nameGifAnimStateMap = new Dictionary<string, List<AnimatorState>>();
             foreach (var item in memeList)
             {
-
-                float u1 = alatlasRects[nameArrayIndexMap[item.name]].xMin;
-                float v1 = alatlasRects[nameArrayIndexMap[item.name]].yMin;
-                float u2 = alatlasRects[nameArrayIndexMap[item.name]].xMax;
-                float v2 = alatlasRects[nameArrayIndexMap[item.name]].yMax;
-                float aspectRatio = item.keepAspectRatio ? (v2 - v1) / (u2 - u1) : 1;
-                var curveU1 = new AnimationCurve(new Keyframe[] { new Keyframe(0, u1), new Keyframe(0.0166666666666667f, u1) });
-                var curveU2 = new AnimationCurve(new Keyframe[] { new Keyframe(0, u2), new Keyframe(0.0166666666666667f, u2) });
-                var curveV1 = new AnimationCurve(new Keyframe[] { new Keyframe(0, v1), new Keyframe(0.0166666666666667f, v1) });
-                var curveV2 = new AnimationCurve(new Keyframe[] { new Keyframe(0, v2), new Keyframe(0.0166666666666667f, v2) });
-                var curveRatio = new AnimationCurve(new Keyframe[] { new Keyframe(0, aspectRatio), new Keyframe(0.0166666666666667f, aspectRatio) });
-                AnimationClip animationClip = new AnimationClip { name = "Anim" + item.name };
                 EditorCurveBinding bindU1 = new EditorCurveBinding
                 {
                     path = "MemeEmitter",
@@ -326,21 +330,73 @@ namespace VRCMemeManager
                     propertyName = "material._AspectRatio",
                     type = typeof(ParticleSystemRenderer)
                 };
-                AnimationUtility.SetEditorCurve(animationClip, bindU1, curveU1);
-                AnimationUtility.SetEditorCurve(animationClip, bindU2, curveU2);
-                AnimationUtility.SetEditorCurve(animationClip, bindV1, curveV1);
-                AnimationUtility.SetEditorCurve(animationClip, bindV2, curveV2);
-                AnimationUtility.SetEditorCurve(animationClip, bindAspectRatio, curveRatio);
-                var settting = AnimationUtility.GetAnimationClipSettings(animationClip);
-                settting.loopTime = true;
-                AnimationUtility.SetAnimationClipSettings(animationClip, settting);
-                AssetDatabase.CreateAsset(animationClip, memeAnimDir + "Anim" + item.name + ".anim");
+                if (item.isGIF)
+                {
+                    int num = gifNameFramesCountMap[item.name];
+                    List<AnimatorState> animatorStates = new List<AnimatorState>();
+                    
+                    for (int i = 0; i < num; i++)
+                    {
+                        float u1 = alatlasRects[nameArrayIndexMap[item.name] + i].xMin;
+                        float v1 = alatlasRects[nameArrayIndexMap[item.name] + i].yMin;
+                        float u2 = alatlasRects[nameArrayIndexMap[item.name] + i].xMax;
+                        float v2 = alatlasRects[nameArrayIndexMap[item.name] + i].yMax;
+                        float aspectRatio = item.keepAspectRatio ? (v2 - v1) / (u2 - u1) : 1;
+                        var curveU1 = new AnimationCurve(new Keyframe[] { new Keyframe(0, u1), new Keyframe(1.0f/item.fps, u1) }); 
+                        var curveU2 = new AnimationCurve(new Keyframe[] { new Keyframe(0, u2), new Keyframe(1.0f / item.fps, u2) });
+                        var curveV1 = new AnimationCurve(new Keyframe[] { new Keyframe(0, v1), new Keyframe(1.0f / item.fps, v1) });
+                        var curveV2 = new AnimationCurve(new Keyframe[] { new Keyframe(0, v2), new Keyframe(1.0f / item.fps, v2) });
+                        var curveRatio = new AnimationCurve(new Keyframe[] { new Keyframe(0, aspectRatio), new Keyframe(1.0f / item.fps, aspectRatio) });
+                        AnimationClip animationClip = new AnimationClip { name = "Anim" + item.name + i};
+                        AnimationUtility.SetEditorCurve(animationClip, bindU1, curveU1);
+                        AnimationUtility.SetEditorCurve(animationClip, bindU2, curveU2);
+                        AnimationUtility.SetEditorCurve(animationClip, bindV1, curveV1);
+                        AnimationUtility.SetEditorCurve(animationClip, bindV2, curveV2);
+                        AnimationUtility.SetEditorCurve(animationClip, bindAspectRatio, curveRatio);
+                        var settting = AnimationUtility.GetAnimationClipSettings(animationClip);
+                        settting.loopTime = false;
+                        AnimationUtility.SetAnimationClipSettings(animationClip, settting);
+                        AssetDatabase.CreateAsset(animationClip, memeAnimDir + "Anim" + item.name+ i + ".anim");
+                        var animState = stateMachineUV.AddState("Anim" + item.name + i);
+                        animState.motion = animationClip;
+                        animatorStates.Add(animState);
+                    }
+                    nameGifAnimStateMap.Add(item.name, animatorStates);
+
+
+                }
+                else {
+                    float u1 = alatlasRects[nameArrayIndexMap[item.name]].xMin;
+                    float v1 = alatlasRects[nameArrayIndexMap[item.name]].yMin;
+                    float u2 = alatlasRects[nameArrayIndexMap[item.name]].xMax;
+                    float v2 = alatlasRects[nameArrayIndexMap[item.name]].yMax;
+                    float aspectRatio = item.keepAspectRatio ? (v2 - v1) / (u2 - u1) : 1;
+                    var curveU1 = new AnimationCurve(new Keyframe[] { new Keyframe(0, u1), new Keyframe(0.0166666666666667f, u1) });
+                    var curveU2 = new AnimationCurve(new Keyframe[] { new Keyframe(0, u2), new Keyframe(0.0166666666666667f, u2) });
+                    var curveV1 = new AnimationCurve(new Keyframe[] { new Keyframe(0, v1), new Keyframe(0.0166666666666667f, v1) });
+                    var curveV2 = new AnimationCurve(new Keyframe[] { new Keyframe(0, v2), new Keyframe(0.0166666666666667f, v2) });
+                    var curveRatio = new AnimationCurve(new Keyframe[] { new Keyframe(0, aspectRatio), new Keyframe(0.0166666666666667f, aspectRatio) });
+                    AnimationClip animationClip = new AnimationClip { name = "Anim" + item.name };
+                   
+                    AnimationUtility.SetEditorCurve(animationClip, bindU1, curveU1);
+                    AnimationUtility.SetEditorCurve(animationClip, bindU2, curveU2);
+                    AnimationUtility.SetEditorCurve(animationClip, bindV1, curveV1);
+                    AnimationUtility.SetEditorCurve(animationClip, bindV2, curveV2);
+                    AnimationUtility.SetEditorCurve(animationClip, bindAspectRatio, curveRatio);
+                    var settting = AnimationUtility.GetAnimationClipSettings(animationClip);
+                    settting.loopTime = true;
+                    AnimationUtility.SetAnimationClipSettings(animationClip, settting);
+                    AssetDatabase.CreateAsset(animationClip, memeAnimDir + "Anim" + item.name + ".anim");
 
 
 
-                var animState = stateMachineUV.AddState("Anim" + item.name);
-                animState.motion = animationClip;
-                nameAnimStateMap[item.name] = animState;
+                    var animState = stateMachineUV.AddState("Anim" + item.name);
+                    animState.motion = animationClip;
+                    nameAnimStateMap[item.name] = animState;
+
+
+                }
+               
             }
             AssetDatabase.Refresh();
             //Transitions
@@ -369,6 +425,60 @@ namespace VRCMemeManager
                 trans6.AddCondition(AnimatorConditionMode.Less, 128, "MemeType_Int");
                 trans6.AddCondition(AnimatorConditionMode.NotEqual, 0, "MemeType_Int");
             }
+            foreach (var item in nameGifAnimStateMap)
+            {
+                var tran4 = idleState.AddTransition(item.Value[0]);
+                tran4.hasExitTime = false;
+                tran4.exitTime = 0;
+                tran4.hasFixedDuration = true;
+                tran4.duration = 0;
+                tran4.AddCondition(AnimatorConditionMode.Equals, nameIndexMap[item.Key] + 1, "MemeType_Int");
+
+                var trans5 = idleState.AddTransition(item.Value[0]);
+                trans5.hasExitTime = false;
+                trans5.exitTime = 0;
+                trans5.hasFixedDuration = true;
+                trans5.duration = 0;
+                trans5.AddCondition(AnimatorConditionMode.Equals, nameIndexMap[item.Key] + 129, "MemeType_Int");
+
+                var trans6 = item.Value[0].AddTransition(idleState);
+                trans6.hasExitTime = false;
+                trans6.exitTime = 0;
+                trans6.hasFixedDuration = true;
+                trans6.duration = int.MaxValue;
+                trans6.interruptionSource = TransitionInterruptionSource.Destination;
+                trans6.AddCondition(AnimatorConditionMode.Less, 128, "MemeType_Int");
+                trans6.AddCondition(AnimatorConditionMode.NotEqual, 0, "MemeType_Int");
+
+                for (int i = 0; i < item.Value.Count - 1; i++)
+                {
+                    var tran7 = item.Value[i].AddTransition(item.Value[i + 1]);
+                    tran7.hasExitTime = true;
+                    tran7.exitTime = 1;
+                    tran7.hasFixedDuration = true;
+                    tran7.duration = 0;
+                    tran7.interruptionSource = TransitionInterruptionSource.Source;
+                    tran7.AddCondition(AnimatorConditionMode.Equals, 0, "MemeType_Int");
+
+                    
+
+                    var trans9 = item.Value[i].AddTransition(idleState);
+                    trans9.hasExitTime = false;
+                    trans9.exitTime = 0;
+                    trans9.hasFixedDuration = true;
+                    trans9.duration = int.MaxValue;
+                    trans9.interruptionSource = TransitionInterruptionSource.Destination;
+                    trans9.AddCondition(AnimatorConditionMode.Less, 128, "MemeType_Int");
+                    trans9.AddCondition(AnimatorConditionMode.NotEqual, 0, "MemeType_Int");
+                }
+                var tran8 = item.Value[item.Value.Count - 1].AddTransition(item.Value[0]);
+                tran8.hasExitTime = true;
+                tran8.exitTime = 1;
+                tran8.hasFixedDuration = true;
+                tran8.duration = 0;
+            }
+
+
 
             fxController.AddLayer(new AnimatorControllerLayer
             {
