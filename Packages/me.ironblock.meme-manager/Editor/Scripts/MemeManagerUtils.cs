@@ -268,42 +268,39 @@ namespace VRCMemeManager
             textureDir+= "/";
 
             //创建表情包贴图
-            List<Texture2DArray> texture2DArrayList = new List<Texture2DArray>();
-            int arrayLength = 0;
+            var shader = Resources.Load<Shader>("Materials/MemeEmitterShader");
+            var shaderGif = Resources.Load<Shader>("Materials/MemeEmitterShaderGif");
+            Dictionary<string, Material> NameMaterialMap = new Dictionary<string, Material>();
             foreach (var item in memeList)
             {
-                Texture2DArray _2darray = null;
+                Texture tex;
+                Material material;
                 if (item.isGIF)
                 {
-                    _2darray = GifToTextureArray(AssetDatabase.GetAssetPath(item.memeTexture));
+                    material = new Material(shaderGif);
+                    tex = GifToTextureArray(AssetDatabase.GetAssetPath(item.memeTexture));
+                    AssetDatabase.CreateAsset(tex, textureDir + item.name + ".asset");
                 }
                 else {
-                    _2darray = new Texture2DArray(item.memeTexture.width, item.memeTexture.height, 1, item.memeTexture.format, item.memeTexture.mipmapCount, true);
-                    Graphics.CopyTexture(item.memeTexture, 0, 0, _2darray, 0, 0);
+                    material = new Material(shader);
+                    tex = item.memeTexture;
                 }
-                texture2DArrayList.Add(_2darray);
-                AssetDatabase.CreateAsset(_2darray, textureDir + item.name + ".asset");
-                arrayLength += _2darray.depth;
+                 
+                NameMaterialMap.Add(item.name, material);
+                material.mainTexture = tex;
+
+                AssetDatabase.CreateAsset(material, textureDir + item.name + ".mat");
+                
             }
-
-
-
-
-            Texture2DArray texture2DArrayAlatlas = new Texture2DArray();
-
 
             AssetDatabase.SaveAssets();
             AssetDatabase.Refresh();
            
-
-            //设置材质
-            var mat = Resources.Load<Material>("Materials/MemeEmitterMaterial");
-            particleSystem.GetComponent<ParticleSystemRenderer>().material = mat;
+            
 
 
 
             AnimationClip disableMemeEmitterAnim = Resources.Load<AnimationClip>("Animations/DisableMemeEmitter");
-            AnimationClip enableMemeEmitterAnim = Resources.Load<AnimationClip>("Animations/EnableMemeEmitter"); ;
             //动画控制器
             AnimatorController fxController = null;
             descriptor.customizeAnimationLayers = true;
@@ -366,48 +363,63 @@ namespace VRCMemeManager
             var disableMemeEmitterState = stateMachineParameters.AddState("DisableMemeEmitter");
             disableMemeEmitterState.motion = disableMemeEmitterAnim;
             stateMachineParameters.defaultState = disableMemeEmitterState;
-            //EnableMemeEmitter
-            var enableMemeEmitterState = stateMachineParameters.AddState("EnableMemeEmitter");
-            enableMemeEmitterState.motion = enableMemeEmitterAnim;
-            var parameterDriver = enableMemeEmitterState.AddStateMachineBehaviour<VRCAvatarParameterDriver>();
-            parameterDriver.parameters.Add(new VRC_AvatarParameterDriver.Parameter() { type = VRC_AvatarParameterDriver.ChangeType.Set, name = "MemeType_Int", value = 0 });
+          
+          
             //其余的
             EditorCurveBinding bindTexture = new EditorCurveBinding
             {
                 path = "MemeEmitter",
-                propertyName = "_MainTex",
+                propertyName = "m_Materials.Array.data[0]",
                 type = typeof(ParticleSystemRenderer)
             };
-            var trans1 = enableMemeEmitterState.AddTransition(disableMemeEmitterState);
-            trans1.hasExitTime = true;
-            trans1.exitTime = 2;
-            trans1.hasFixedDuration = true;
-            trans1.duration = 0;
-            trans1.interruptionSource = TransitionInterruptionSource.Destination;
+          
             int j = 0;
+            AnimationCurve curve = new AnimationCurve(new Keyframe[] {
+                    new Keyframe(0, 4),
+                    new Keyframe(2 - 2.0f/60, 4),
+                    new Keyframe(2, 0),
+                });
+            EditorCurveBinding bindEnable = new EditorCurveBinding
+            {
+                path = "MemeEmitter",
+                propertyName = "EmissionModule.rateOverTime.scalar",
+                type = typeof(ParticleSystem)
+            };
             foreach (var item in memeList)
             {
-                var animCurve = new AnimationCurve(new Keyframe[] { new Keyframe(0, textureArrayNameIndexMap[item.name])});
+
+                ObjectReferenceKeyframe[] objectReferenceKeyframes = new ObjectReferenceKeyframe[]
+                    { 
+                        new ObjectReferenceKeyframe{ time = 0, value = NameMaterialMap[item.name]},
+                        new ObjectReferenceKeyframe{ time = 2f, value = NameMaterialMap[item.name]}
+                    };
                 var animClip = new AnimationClip();
-                animClip.SetCurve("MemeEmitter", typeof(ParticleSystemRenderer), "_MainTex", animCurve);
-                AnimationUtility.SetObjectReferenceCurve(animClip, bindTexture, texture2DArrayskeyframes);
+                AnimationUtility.SetObjectReferenceCurve(animClip, bindTexture, objectReferenceKeyframes);
+                AnimationUtility.SetEditorCurve(animClip, bindEnable, curve);
                 AssetDatabase.CreateAsset(animClip, memeAnimDir + item.name + ".asset");
 
                 var stateTmp = stateMachineParameters.AddState(item.name);
                 stateTmp.motion = animClip;
-                var trans8 = stateTmp.AddTransition(enableMemeEmitterState);
-                trans8.hasExitTime = true;
-                trans8.exitTime = 1;
-                trans8.hasFixedDuration = true;
+                
+                var trans8 = disableMemeEmitterState.AddTransition(stateTmp);
+                trans8.exitTime = 0;
+                trans8.hasExitTime = false;
                 trans8.duration = 0;
-                var trans9 = disableMemeEmitterState.AddTransition(stateTmp);
-                trans9.hasExitTime = false;
-                trans9.exitTime = 0;
-                trans9.hasFixedDuration = false;
-                trans9.duration = 0;
-                trans9.AddCondition(AnimatorConditionMode.Equals, j + 1, "MemeType_Int");
+                trans8.hasFixedDuration = false;
+                trans8.AddCondition(AnimatorConditionMode.Equals, j + 1, "MemeType_Int");
+
+                var trans9 = stateTmp.AddTransition(disableMemeEmitterState);
+                trans9.hasExitTime = true;
+                trans9.exitTime = 1;
+                trans9.hasFixedDuration = true;
+                trans9.duration = float.MaxValue;
+                trans9.interruptionSource = TransitionInterruptionSource.Destination;
+             
                 j++;
             }
+            var parameterDriver = disableMemeEmitterState.AddStateMachineBehaviour<VRCAvatarParameterDriver>();
+            parameterDriver.parameters.Add(new VRC_AvatarParameterDriver.Parameter() { type = VRC_AvatarParameterDriver.ChangeType.Set, name = "MemeType_Int", value = 0 });
+
 
 
             //Timer

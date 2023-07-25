@@ -63,6 +63,7 @@
     <Compile Include="Packages\me.ironblock.meme-manager\Editor\Scripts\MoyuToolkitUtils.cs" />
   </ItemGroup>
   <ItemGroup>
+    <None Include="Packages\me.ironblock.meme-manager\Editor\Assets\Resources\Materials\MemeEmitterShaderGif.shader" />
     <None Include="Packages\me.ironblock.meme-manager\Editor\Assets\Resources\Materials\MemeEmitterShader.shader" />
     <None Include="Packages\me.ironblock.meme-manager\Editor\VRChatPackageTemplate.Editor.asmdef" />
   </ItemGroup>
