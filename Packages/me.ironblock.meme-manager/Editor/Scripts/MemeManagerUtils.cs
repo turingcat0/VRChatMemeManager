@@ -107,6 +107,7 @@ namespace VRCMemeManager
             var avatarId = MoyuToolkitUtils.GetAvatarId(avatar);
             var dirPath = GetParameterDirPath(avatarId, "");
             var descriptor = avatar.GetComponent<VRCAvatarDescriptor>();
+            
             var expressionParameters = descriptor.expressionParameters;
             var expressionsMenu = descriptor.expressionsMenu;
             /***添加Particle System ***/
@@ -118,6 +119,7 @@ namespace VRCMemeManager
             GameObject memeEmitterPrebab = Resources.Load<GameObject>("Prefabs/MemeEmitter");
             memeEmitter = Object.Instantiate(memeEmitterPrebab, avatar.transform).transform;
             memeEmitter.gameObject.name = "MemeEmitter";
+            memeEmitter.Translate(new Vector3(0, descriptor.ViewPosition.y, 0));
             ParticleSystem particleSystem = memeEmitter.gameObject.GetComponent<ParticleSystem>();
 
             //准备目录
@@ -287,7 +289,7 @@ namespace VRCMemeManager
 
             var stateMachineUV = new AnimatorStateMachine()
             {
-                name = "MemeEmitterEmissionUV",
+                name = "MemeEmitterEmissionParameters",
                 hideFlags = HideFlags.HideInHierarchy
             };
             AssetDatabase.AddObjectToAsset(stateMachineUV, AssetDatabase.GetAssetPath(fxController));
