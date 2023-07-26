@@ -34,8 +34,6 @@ Shader "MemeManager/MemeEmitterShader"
             sampler2D _MainTex;
             float _AspectRatio;
             int _Timer;
-            int _FPS;
-            int _Length;
 
             v2f vert (appdata v)
             {

@@ -107,7 +107,7 @@ namespace VRCMemeManager
             //Debug.Log("has alpha? " + hasAlpha);
             for (int i = 0; i < frameCount; i++)
             {
-                EditorUtility.CompressTexture(gifFrames[i], hasAlpha ? TextureFormat.DXT5 : TextureFormat.DXT1, UnityEditor.TextureCompressionQuality.Normal);
+                EditorUtility.CompressTexture(gifFrames[i], hasAlpha ? TextureFormat.DXT5 : TextureFormat.DXT1, UnityEditor.TextureCompressionQuality.Best);
                 gifFrames[i].Apply(true, false);
             }
 #endif
@@ -243,7 +243,6 @@ namespace VRCMemeManager
             memeEmitter = Object.Instantiate(memeEmitterPrebab, avatar.transform).transform;
             memeEmitter.gameObject.name = "MemeEmitter";
             memeEmitter.Translate(new Vector3(0, descriptor.ViewPosition.y, 0));
-            ParticleSystem particleSystem = memeEmitter.gameObject.GetComponent<ParticleSystem>();
 
             //准备目录
             var memeAnimDir = dirPath + "Anim/MemeManager/";
@@ -271,6 +270,7 @@ namespace VRCMemeManager
             var shader = Resources.Load<Shader>("Materials/MemeEmitterShader");
             var shaderGif = Resources.Load<Shader>("Materials/MemeEmitterShaderGif");
             Dictionary<string, Material> NameMaterialMap = new Dictionary<string, Material>();
+            Dictionary<string, int> nameLengthMap = new Dictionary<string, int>();
             foreach (var item in memeList)
             {
                 Texture tex;
@@ -278,7 +278,9 @@ namespace VRCMemeManager
                 if (item.isGIF)
                 {
                     material = new Material(shaderGif);
-                    tex = GifToTextureArray(AssetDatabase.GetAssetPath(item.memeTexture));
+                    var t2da = GifToTextureArray(AssetDatabase.GetAssetPath(item.memeTexture));
+                    nameLengthMap.Add(item.name, t2da.depth);
+                    tex = t2da;
                     AssetDatabase.CreateAsset(tex, textureDir + item.name + ".asset");
                 }
                 else {
@@ -287,6 +289,7 @@ namespace VRCMemeManager
                 }
                  
                 NameMaterialMap.Add(item.name, material);
+                
                 material.mainTexture = tex;
 
                 AssetDatabase.CreateAsset(material, textureDir + item.name + ".mat");
@@ -375,9 +378,9 @@ namespace VRCMemeManager
           
             int j = 0;
             AnimationCurve curve = new AnimationCurve(new Keyframe[] {
-                    new Keyframe(0, 4),
-                    new Keyframe(2 - 2.0f/60, 4),
-                    new Keyframe(2, 0),
+                    new Keyframe(0, 8),
+                    new Keyframe(0.5f, 8),
+                    new Keyframe(0.5f, 0),
                 });
             EditorCurveBinding bindEnable = new EditorCurveBinding
             {
@@ -385,17 +388,49 @@ namespace VRCMemeManager
                 propertyName = "EmissionModule.rateOverTime.scalar",
                 type = typeof(ParticleSystem)
             };
+
+            EditorCurveBinding bindLength = new EditorCurveBinding
+            {
+                path = "MemeEmitter",
+                propertyName = "material._Length",
+                type = typeof(ParticleSystemRenderer)
+            };
+            EditorCurveBinding bindFPS = new EditorCurveBinding
+            {
+                path = "MemeEmitter",
+                propertyName = "material._FPS",
+                type = typeof(ParticleSystemRenderer)
+            };
+            EditorCurveBinding bindAspectRatio = new EditorCurveBinding
+            {
+                path = "MemeEmitter",
+                propertyName = "material._AspectRatio",
+                type = typeof(ParticleSystemRenderer)
+            };
+
+
             foreach (var item in memeList)
             {
-
+                float aspectRatio = item.keepAspectRatio ? ((float)item.memeTexture.height/item.memeTexture.width) : 1;
+                var curveRatio = new AnimationCurve(new Keyframe[] { new Keyframe(0, aspectRatio), new Keyframe(0.0166666666666667f, aspectRatio) });
                 ObjectReferenceKeyframe[] objectReferenceKeyframes = new ObjectReferenceKeyframe[]
                     { 
                         new ObjectReferenceKeyframe{ time = 0, value = NameMaterialMap[item.name]},
-                        new ObjectReferenceKeyframe{ time = 2f, value = NameMaterialMap[item.name]}
+                        new ObjectReferenceKeyframe{ time = 0.5f, value = NameMaterialMap[item.name]}
                     };
                 var animClip = new AnimationClip();
                 AnimationUtility.SetObjectReferenceCurve(animClip, bindTexture, objectReferenceKeyframes);
                 AnimationUtility.SetEditorCurve(animClip, bindEnable, curve);
+                AnimationUtility.SetEditorCurve(animClip, bindAspectRatio, curveRatio);
+                if (item.isGIF)
+                {
+                    var fpsCurve = new AnimationCurve(new Keyframe[] { new Keyframe(0, item.fps), new Keyframe(0.0166666666666667f, item.fps) });
+                    AnimationUtility.SetEditorCurve(animClip, bindFPS, fpsCurve);
+                    int length = nameLengthMap[item.name];
+                    var lengthCurve = new AnimationCurve(new Keyframe[] { new Keyframe(0, length), new Keyframe(0.0166666666666667f, length) });
+                    AnimationUtility.SetEditorCurve(animClip, bindLength, lengthCurve);
+                }
+
                 AssetDatabase.CreateAsset(animClip, memeAnimDir + item.name + ".asset");
 
                 var stateTmp = stateMachineParameters.AddState(item.name);
@@ -435,9 +470,49 @@ namespace VRCMemeManager
                 propertyName = "material._Timer",
                 type = typeof(ParticleSystemRenderer)
             };
-            var curveTimer = new AnimationCurve(new Keyframe[] {new Keyframe(0,0), new Keyframe(12000, 12000 * 60)});
+            var curveTimer = new AnimationCurve(new Keyframe[] {
+                new Keyframe(0,0), new Keyframe(0.0166667f,0)
+            });
+            var curveTimerReset = new AnimationCurve(new Keyframe[] {
+                new Keyframe(0,600), new Keyframe(0.0166667f,600)
+            });
             AnimationClip animationClipTimer = new AnimationClip { name = "AnimTimer" };
             AnimationUtility.SetEditorCurve(animationClipTimer, bindTimer, curveTimer);
+     
+
+
+            AssetDatabase.CreateAsset(animationClipTimer, memeAnimDir + "timer.anim");
+            var stateTimer =  stateMachineTimer.AddState("Timer");
+            stateTimer.motion = animationClipTimer;
+            
+
+
+            AnimationClip animationClipTimerReset = new AnimationClip { name = "AnimTimerReset" };
+            AnimationUtility.SetEditorCurve(animationClipTimerReset, bindTimer, curveTimerReset);
+            AssetDatabase.CreateAsset(animationClipTimerReset, memeAnimDir + "timerReset.anim");
+
+            var stateTimerReset = stateMachineTimer.AddState("TimerReset");
+            stateTimerReset.motion = animationClipTimerReset;
+            stateMachineTimer.defaultState = stateTimerReset;
+
+
+            var trans10 = stateTimerReset.AddTransition(stateTimer);
+            trans10.exitTime = 0;
+            trans10.hasExitTime = false;
+            trans10.hasFixedDuration = false;
+            trans10.duration = 0;
+            trans10.AddCondition(AnimatorConditionMode.NotEqual, 0, "MemeType_Int");
+            
+
+
+            var trans11 = stateTimer.AddTransition(stateTimerReset);
+            trans11.hasExitTime = true;
+            trans11.exitTime = 1;
+            trans11.hasFixedDuration = true;
+            trans11.duration = 10;
+            trans11.interruptionSource = TransitionInterruptionSource.Destination;
+
+
             AssetDatabase.AddObjectToAsset(stateMachineTimer, AssetDatabase.GetAssetPath(fxController));
 
             fxController.AddLayer(new AnimatorControllerLayer

@@ -46,8 +46,8 @@ Shader "MemeManager/MemeEmitterShader"
                 clipPos.y *= _AspectRatio;
                 o.vertex = clipPos;
                 o.uv.xy = v.uv.xy;
-                // o.uv.z = ((uint)(_Timer * (_FPS / 60.0f)) % _Length);
-                o.uv.z = 0;
+                o.uv.z = ((uint)(_Timer * (_FPS / 60.0f)) % _Length);
+                // o.uv.z = 0;
                 return o;
             }
 
