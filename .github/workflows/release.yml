@@ -4,7 +4,7 @@ on:
   workflow_dispatch:
   push:
     branches: main
-    paths: Packages/me.ironblock.meme-manager/**
+    paths: Packages/me.ironblock.meme-manager/package.json
 
 env:
   packageName: "me.ironblock.meme-manager"
