@@ -577,14 +577,13 @@ namespace VRCMemeManager
                     var memeTypeMap = new Dictionary<string, List<MemeManagerParameter.MemeInfo>>();
                     foreach (var info in memeList)
                     {
-                        var type = info.type.Length == 0 ? "未分类" : info.type;
+                        var type = (info.type.Length == 0 ? "未分类" : info.type);
                         if (!memeTypeMap.ContainsKey(type))
                             memeTypeMap.Add(type, new List<MemeManagerParameter.MemeInfo>());
                         memeTypeMap[type].Add(info);
                     }
 
-                    var memeMenuMap = new Dictionary<string, VRCExpressionsMenu>();
-                    var mainMemeMenuIndex = 0;
+                    var typeNameGeneratedCountMap = new Dictionary<string, int>();
                     // 生成类型菜单
                     foreach (var item in memeTypeMap)
                     {
@@ -593,29 +592,16 @@ namespace VRCMemeManager
 
                         var menuList = new List<VRCExpressionsMenu>();
                         var nowMemeMenu = ScriptableObject.CreateInstance<VRCExpressionsMenu>();
-                        AssetDatabase.CreateAsset(nowMemeMenu, menuDir + "MemeType_" + name + ".asset");
                         EditorUtility.SetDirty(nowMemeMenu);
                         menuList.Add(nowMemeMenu);
-                        memeMenuMap.Add(name, nowMemeMenu);
 
+                        
                         // 判断是否已分类
                         if (!hasClassify)
                             mainMemeMenu = nowMemeMenu;
+                       
 
-                        if (nowMemeMenu.controls.Count == 7)
-                        {
-                            var newMenu = ScriptableObject.CreateInstance<VRCExpressionsMenu>();
-                            AssetDatabase.CreateAsset(newMenu, menuDir + "MemeType_" + mainMemeMenuIndex++ + ".asset");
-                            nowMemeMenu.controls.Add(new VRCExpressionsMenu.Control
-                            {
-                                name = "下一页",
-                                type = VRCExpressionsMenu.Control.ControlType.SubMenu,
-                                subMenu = newMenu
-                            });
-                            nowMemeMenu = newMenu;
-                            menuList.Add(newMenu);
-                            EditorUtility.SetDirty(newMenu);
-                        }
+                        //考虑到正常人不会做8个以上的分类, 所以就不添加下一页检测了
                         if (hasClassify)
                             mainMemeMenu.controls.Add(new VRCExpressionsMenu.Control
                             {
@@ -623,13 +609,18 @@ namespace VRCMemeManager
                                 type = VRCExpressionsMenu.Control.ControlType.SubMenu,
                                 subMenu = nowMemeMenu
                             });
+                        if (!typeNameGeneratedCountMap.ContainsKey(item.Key))
+                        {
+                            typeNameGeneratedCountMap.Add(item.Key, 0);
+                        }
+
+                        
 
                         foreach (var info in infoList)
                         {
-                            if (nowMemeMenu.controls.Count == 7)
+                            if (nowMemeMenu.controls.Count == 7&&(item.Value.Count - typeNameGeneratedCountMap[item.Key]) != 1)
                             {
                                 var newMenu = ScriptableObject.CreateInstance<VRCExpressionsMenu>();
-                                AssetDatabase.CreateAsset(newMenu, menuDir + "MemeType_" + name + "_" + (menuList.Count) + ".asset");
                                 EditorUtility.SetDirty(newMenu);
                                 if (nowMemeMenu != null)
                                 {
@@ -651,8 +642,18 @@ namespace VRCMemeManager
                                 parameter = new VRCExpressionsMenu.Control.Parameter { name = "MemeType_Int" },
                                 value = memeList.IndexOf(info) + 1
                             });
+                            EditorUtility.SetDirty(nowMemeMenu);
+                            typeNameGeneratedCountMap[item.Key]++;
                         }
+                        int index = 0;
+                        foreach (var item1 in menuList)
+                        {
+                            AssetDatabase.CreateAsset(item1, menuDir + "MemeType_" + name + "_" + (index) + ".asset");
+                            index++;
+                        }
+
                     }
+
                     if (hasClassify)
                         AssetDatabase.CreateAsset(mainMemeMenu, menuDir + "ActionMenu.asset");
                 }
@@ -666,7 +667,7 @@ namespace VRCMemeManager
                 {
                     if (control.type == VRCExpressionsMenu.Control.ControlType.SubMenu)
                     {
-                        if (control.name == "Memes")
+                        if (control.name == "表情包")
                             memeControl = control;
                     }
                 }
@@ -674,7 +675,7 @@ namespace VRCMemeManager
                 {
                     expressionsMenu.controls.Add(new VRCExpressionsMenu.Control
                     {
-                        name = "Memes",
+                        name = "表情包",
                         type = VRCExpressionsMenu.Control.ControlType.SubMenu,
                         subMenu = mainMemeMenu,
                     });
@@ -693,6 +694,8 @@ namespace VRCMemeManager
             EditorUtility.SetDirty(fxController);
             EditorUtility.SetDirty(expressionsMenu);
             EditorUtility.SetDirty(expressionParameters);
+            AssetDatabase.SaveAssets();
+            AssetDatabase.Refresh();
             descriptor.customExpressions = true;
             descriptor.expressionParameters = expressionParameters;
             descriptor.expressionsMenu = expressionsMenu;
