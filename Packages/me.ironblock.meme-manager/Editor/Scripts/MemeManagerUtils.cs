@@ -8,6 +8,7 @@ using VRC.SDK3.Avatars.Components;
 using static VRC.SDK3.Avatars.Components.VRCAvatarDescriptor;
 using VRC.SDKBase;
 using VRC.SDK3.Avatars.ScriptableObjects;
+using System.Reflection;
 
 namespace VRCMemeManager
 {
@@ -41,8 +42,130 @@ namespace VRCMemeManager
             }
         }
 
-        // 创建表情包参数文件
-        internal static MemeManagerParameter CreateMemeManagerParameter(GameObject avatar)
+        public static Texture2DArray GifToTextureArray(string path)
+        {
+            List<Texture2D> array = GetGifFrames(path);
+            if (array == null) return null;
+            if (array.Count == 0)
+            {
+                Debug.LogError("Gif is empty or System.Drawing is not working. Try right clicking and reimporting the \"Thry Editor\" Folder!");
+                return null;
+            }
+            Texture2DArray arrayTexture = Textre2DArrayToAsset(array.ToArray());
+            return arrayTexture;
+        }
+
+        public static List<Texture2D> GetGifFrames(string path)
+        {
+            List<Texture2D> gifFrames = new List<Texture2D>();
+#if SYSTEM_DRAWING
+            var gifImage = System.Drawing.Image.FromFile(path);
+            var dimension = new System.Drawing.Imaging.FrameDimension(gifImage.FrameDimensionsList[0]);
+
+            int width = Mathf.ClosestPowerOfTwo(gifImage.Width - 1);
+            int height = Mathf.ClosestPowerOfTwo(gifImage.Height - 1);
+
+            bool hasAlpha = false;
+
+            int frameCount = gifImage.GetFrameCount(dimension);
+
+            float totalProgress = frameCount * width;
+            for (int i = 0; i < frameCount; i++)
+            {
+                gifImage.SelectActiveFrame(dimension, i);
+                var ogframe = new System.Drawing.Bitmap(gifImage.Width, gifImage.Height);
+                System.Drawing.Graphics.FromImage(ogframe).DrawImage(gifImage, System.Drawing.Point.Empty);
+                var frame = ResizeBitmap(ogframe, width, height);
+
+                Texture2D frameTexture = new Texture2D(frame.Width, frame.Height);
+
+                float doneProgress = i * width;
+                for (int x = 0; x < frame.Width; x++)
+                {
+                    if (x % 20 == 0)
+                        if (EditorUtility.DisplayCancelableProgressBar("From GIF", "Frame " + i + ": " + (int)((float)x / width * 100) + "%", (doneProgress + x + 1) / totalProgress))
+                        {
+                            EditorUtility.ClearProgressBar();
+                            return null;
+                        }
+
+                    for (int y = 0; y < frame.Height; y++)
+                    {
+                        System.Drawing.Color sourceColor = frame.GetPixel(x, y);
+                        frameTexture.SetPixel(x, frame.Height - 1 - y, new UnityEngine.Color32(sourceColor.R, sourceColor.G, sourceColor.B, sourceColor.A));
+                        if (sourceColor.A < 255.0f)
+                        {
+                            hasAlpha = true;
+                        }
+                    }
+                }
+
+                frameTexture.Apply();
+                gifFrames.Add(frameTexture);
+            }
+            EditorUtility.ClearProgressBar();
+            //Debug.Log("has alpha? " + hasAlpha);
+            for (int i = 0; i < frameCount; i++)
+            {
+                EditorUtility.CompressTexture(gifFrames[i], hasAlpha ? TextureFormat.DXT5 : TextureFormat.DXT1, UnityEditor.TextureCompressionQuality.Best);
+                gifFrames[i].Apply(true, false);
+            }
+#endif
+            return gifFrames;
+        }
+#if SYSTEM_DRAWING
+        public static System.Drawing.Bitmap ResizeBitmap(System.Drawing.Image image, int width, int height)
+        {
+            var destRect = new System.Drawing.Rectangle(0, 0, width, height);
+            var destImage = new System.Drawing.Bitmap(width, height);
+
+            destImage.SetResolution(image.HorizontalResolution, image.VerticalResolution);
+
+            using (var graphics = System.Drawing.Graphics.FromImage(destImage))
+            {
+                graphics.CompositingMode = System.Drawing.Drawing2D.CompositingMode.SourceCopy;
+                graphics.CompositingQuality = System.Drawing.Drawing2D.CompositingQuality.HighQuality;
+                graphics.InterpolationMode = System.Drawing.Drawing2D.InterpolationMode.HighQualityBicubic;
+                graphics.SmoothingMode = System.Drawing.Drawing2D.SmoothingMode.HighQuality;
+                graphics.PixelOffsetMode = System.Drawing.Drawing2D.PixelOffsetMode.HighQuality;
+
+                using (var wrapMode = new System.Drawing.Imaging.ImageAttributes())
+                {
+                    wrapMode.SetWrapMode(System.Drawing.Drawing2D.WrapMode.TileFlipXY);
+                    graphics.DrawImage(image, destRect, 0, 0, image.Width, image.Height, System.Drawing.GraphicsUnit.Pixel, wrapMode);
+                }
+            }
+
+            return destImage;
+        }
+#endif
+
+        private static Texture2DArray Textre2DArrayToAsset(Texture2D[] array)
+        {
+            Texture2DArray texture2DArray = new Texture2DArray(array[0].width, array[0].height, array.Length, array[0].format, true);
+
+#if SYSTEM_DRAWING
+            for (int i = 0; i < array.Length; i++)
+            {
+                for (int m = 0; m < array[i].mipmapCount; m++)
+                {
+                    UnityEngine.Graphics.CopyTexture(array[i], 0, m, texture2DArray, i, m);
+                }
+            }
+#endif
+
+            texture2DArray.anisoLevel = array[0].anisoLevel;
+            texture2DArray.wrapModeU = array[0].wrapModeU;
+            texture2DArray.wrapModeV = array[0].wrapModeV;
+
+            texture2DArray.Apply(false, true);
+
+            return texture2DArray;
+        }
+    
+
+    // 创建表情包参数文件
+    internal static MemeManagerParameter CreateMemeManagerParameter(GameObject avatar)
         {
             if (avatar == null)
                 return null;
@@ -120,7 +243,6 @@ namespace VRCMemeManager
             memeEmitter = Object.Instantiate(memeEmitterPrebab, avatar.transform).transform;
             memeEmitter.gameObject.name = "MemeEmitter";
             memeEmitter.Translate(new Vector3(0, descriptor.ViewPosition.y, 0));
-            ParticleSystem particleSystem = memeEmitter.gameObject.GetComponent<ParticleSystem>();
 
             //准备目录
             var memeAnimDir = dirPath + "Anim/MemeManager/";
@@ -138,58 +260,50 @@ namespace VRCMemeManager
 
             }
 
-
-            //创建表情包贴图
-            Dictionary<string, int> nameIndexMap = new Dictionary<string, int>();
-            Texture2D alatlas = new Texture2D(textureAlatlasSize, textureAlatlasSize, TextureFormat.RGBA32, true);
-            int index = 0;
-            Dictionary<string, int> gifNameFramesCountMap = new Dictionary<string, int>();
-            Dictionary<string, int> nameArrayIndexMap = new Dictionary<string, int>();
-            List<Texture2D> texture2DList = new List<Texture2D>();
-
-            foreach (var info in memeList)
-            {
-                nameArrayIndexMap.Add(info.name, texture2DList.Count);
-                nameIndexMap.Add(info.name, index);
-                index++;
-                if (info.isGIF)
-                {
-                    var path = AssetDatabase.GetAssetPath(info.memeTexture);
-                    Debug.Log(path);
-                    texture2DList.Add(info.memeTexture);
-                    gifNameFramesCountMap.Add(info.name, 1);//TODO: 改掉
-                }
-                else
-                {
-                    texture2DList.Add(info.memeTexture);
-                }
-            }
-            Rect[] alatlasRects = alatlas.PackTextures(texture2DList.ToArray(), 0, textureAlatlasSize, false);
             var textureDir = dirPath + "/Textures/MemeManager";
             if (Directory.Exists(textureDir))
                 Directory.Delete(textureDir, true);
             Directory.CreateDirectory(textureDir);
-            textureDir += "/textureAlatlas.asset";
-            alatlas.Compress(false);
-            AssetDatabase.CreateAsset(alatlas, textureDir);
+            textureDir+= "/";
+
+            //创建表情包贴图
+            var shader = Resources.Load<Shader>("Materials/MemeEmitterShader");
+            var shaderGif = Resources.Load<Shader>("Materials/MemeEmitterShaderGif");
+            Dictionary<string, Material> NameMaterialMap = new Dictionary<string, Material>();
+            Dictionary<string, int> nameLengthMap = new Dictionary<string, int>();
+            foreach (var item in memeList)
+            {
+                Texture tex;
+                Material material;
+                if (item.isGIF)
+                {
+                    material = new Material(shaderGif);
+                    var t2da = GifToTextureArray(AssetDatabase.GetAssetPath(item.memeTexture));
+                    nameLengthMap.Add(item.name, t2da.depth);
+                    tex = t2da;
+                    AssetDatabase.CreateAsset(tex, textureDir + item.name + ".asset");
+                }
+                else {
+                    material = new Material(shader);
+                    tex = item.memeTexture;
+                }
+                 
+                NameMaterialMap.Add(item.name, material);
+                
+                material.mainTexture = tex;
+
+                AssetDatabase.CreateAsset(material, textureDir + item.name + ".mat");
+                
+            }
+
+            AssetDatabase.SaveAssets();
             AssetDatabase.Refresh();
-
-            //设置材质
-            var mat = Resources.Load<Material>("Materials/MemeEmitterMaterial");
-            particleSystem.GetComponent<ParticleSystemRenderer>().material = mat;
-            mat.mainTexture = alatlas;
-            mat.mainTextureScale = new Vector2(0, 0);
-            mat.mainTextureOffset = new Vector2(0, 0);
-            mat.SetFloat("_TextureU1", 0.0f);
-            mat.SetFloat("_TextureV1", 0.0f);
-            mat.SetFloat("_TextureU2", 1.0f);
-            mat.SetFloat("_TextureV2", 1.0f);
+           
+            
 
 
 
-            //读入动画
             AnimationClip disableMemeEmitterAnim = Resources.Load<AnimationClip>("Animations/DisableMemeEmitter");
-            AnimationClip enableMemeEmitterAnim = Resources.Load<AnimationClip>("Animations/EnableMemeEmitter"); ;
             //动画控制器
             AnimatorController fxController = null;
             descriptor.customizeAnimationLayers = true;
@@ -237,153 +351,182 @@ namespace VRCMemeManager
             }
             // 添加新StateMachine
             //Layer 1
-            var stateMachineEmission = new AnimatorStateMachine()
+            var stateMachineParameters = new AnimatorStateMachine()
             {
-                name = "MemeEmitterEmission",
+                name = "MemeEmitterParameter",
                 hideFlags = HideFlags.HideInHierarchy
             };
-            AssetDatabase.AddObjectToAsset(stateMachineEmission, AssetDatabase.GetAssetPath(fxController));
+            AssetDatabase.AddObjectToAsset(stateMachineParameters, AssetDatabase.GetAssetPath(fxController));
+
+
+
+
+
             //DisableMemeEmitter
-            var disableMemeEmitterState = stateMachineEmission.AddState("DisableMemeEmitter");
+            var disableMemeEmitterState = stateMachineParameters.AddState("DisableMemeEmitter");
             disableMemeEmitterState.motion = disableMemeEmitterAnim;
-            stateMachineEmission.defaultState = disableMemeEmitterState;
-            //EnableMemeEmitter
-            var enableMemeEmitterState = stateMachineEmission.AddState("EnableMemeEmitter");
-            enableMemeEmitterState.motion = enableMemeEmitterAnim;
-            var parameterDriver = enableMemeEmitterState.AddStateMachineBehaviour<VRCAvatarParameterDriver>();
-            parameterDriver.parameters.Add(new VRC_AvatarParameterDriver.Parameter() { type = VRC_AvatarParameterDriver.ChangeType.Add, name = "MemeType_Int", value = 128 });
-
-            //Transitions
-            var trans1 = disableMemeEmitterState.AddTransition(enableMemeEmitterState);
-            trans1.hasExitTime = false;
-            trans1.exitTime = 0;
-            trans1.hasFixedDuration = true;
-            trans1.duration = 0;
-            trans1.AddCondition(AnimatorConditionMode.Less, 128, "MemeType_Int");
-            trans1.AddCondition(AnimatorConditionMode.NotEqual, 0, "MemeType_Int");
-
-            var trans2 = enableMemeEmitterState.AddTransition(disableMemeEmitterState);
-            trans2.hasExitTime = true;
-            trans2.exitTime = 1;
-            trans2.hasFixedDuration = true;
-            trans2.duration = 0;
-
-
-
-
-
-            var stateMachineUV = new AnimatorStateMachine()
+            stateMachineParameters.defaultState = disableMemeEmitterState;
+          
+          
+            //其余的
+            EditorCurveBinding bindTexture = new EditorCurveBinding
             {
-                name = "MemeEmitterEmissionParameters",
-                hideFlags = HideFlags.HideInHierarchy
+                path = "MemeEmitter",
+                propertyName = "m_Materials.Array.data[0]",
+                type = typeof(ParticleSystemRenderer)
             };
-            AssetDatabase.AddObjectToAsset(stateMachineUV, AssetDatabase.GetAssetPath(fxController));
+          
+            int j = 0;
+            AnimationCurve curve = new AnimationCurve(new Keyframe[] {
+                    new Keyframe(0, 8),
+                    new Keyframe(0.5f, 8),
+                    new Keyframe(0.5f, 0),
+                });
+            EditorCurveBinding bindEnable = new EditorCurveBinding
+            {
+                path = "MemeEmitter",
+                propertyName = "EmissionModule.rateOverTime.scalar",
+                type = typeof(ParticleSystem)
+            };
 
-            var idleState = stateMachineUV.AddState("Idle");
-            stateMachineUV.defaultState = idleState;
+            EditorCurveBinding bindLength = new EditorCurveBinding
+            {
+                path = "MemeEmitter",
+                propertyName = "material._Length",
+                type = typeof(ParticleSystemRenderer)
+            };
+            EditorCurveBinding bindFPS = new EditorCurveBinding
+            {
+                path = "MemeEmitter",
+                propertyName = "material._FPS",
+                type = typeof(ParticleSystemRenderer)
+            };
+            EditorCurveBinding bindAspectRatio = new EditorCurveBinding
+            {
+                path = "MemeEmitter",
+                propertyName = "material._AspectRatio",
+                type = typeof(ParticleSystemRenderer)
+            };
 
-            //Anim States
-            Dictionary<string, AnimatorState> nameAnimStateMap = new Dictionary<string, AnimatorState>();
+
             foreach (var item in memeList)
             {
-
-                float u1 = alatlasRects[nameArrayIndexMap[item.name]].xMin;
-                float v1 = alatlasRects[nameArrayIndexMap[item.name]].yMin;
-                float u2 = alatlasRects[nameArrayIndexMap[item.name]].xMax;
-                float v2 = alatlasRects[nameArrayIndexMap[item.name]].yMax;
-                float aspectRatio = item.keepAspectRatio ? (v2 - v1) / (u2 - u1) : 1;
-                var curveU1 = new AnimationCurve(new Keyframe[] { new Keyframe(0, u1), new Keyframe(0.0166666666666667f, u1) });
-                var curveU2 = new AnimationCurve(new Keyframe[] { new Keyframe(0, u2), new Keyframe(0.0166666666666667f, u2) });
-                var curveV1 = new AnimationCurve(new Keyframe[] { new Keyframe(0, v1), new Keyframe(0.0166666666666667f, v1) });
-                var curveV2 = new AnimationCurve(new Keyframe[] { new Keyframe(0, v2), new Keyframe(0.0166666666666667f, v2) });
+                float aspectRatio = item.keepAspectRatio ? ((float)item.memeTexture.height/item.memeTexture.width) : 1;
                 var curveRatio = new AnimationCurve(new Keyframe[] { new Keyframe(0, aspectRatio), new Keyframe(0.0166666666666667f, aspectRatio) });
-                AnimationClip animationClip = new AnimationClip { name = "Anim" + item.name };
-                EditorCurveBinding bindU1 = new EditorCurveBinding
+                ObjectReferenceKeyframe[] objectReferenceKeyframes = new ObjectReferenceKeyframe[]
+                    { 
+                        new ObjectReferenceKeyframe{ time = 0, value = NameMaterialMap[item.name]},
+                        new ObjectReferenceKeyframe{ time = 0.5f, value = NameMaterialMap[item.name]}
+                    };
+                var animClip = new AnimationClip();
+                AnimationUtility.SetObjectReferenceCurve(animClip, bindTexture, objectReferenceKeyframes);
+                AnimationUtility.SetEditorCurve(animClip, bindEnable, curve);
+                AnimationUtility.SetEditorCurve(animClip, bindAspectRatio, curveRatio);
+                if (item.isGIF)
                 {
-                    path = "MemeEmitter",
-                    propertyName = "material._TextureU1",
-                    type = typeof(ParticleSystemRenderer)
-                };
-                EditorCurveBinding bindU2 = new EditorCurveBinding
-                {
-                    path = "MemeEmitter",
-                    propertyName = "material._TextureU2",
-                    type = typeof(ParticleSystemRenderer)
-                };
-                EditorCurveBinding bindV1 = new EditorCurveBinding
-                {
-                    path = "MemeEmitter",
-                    propertyName = "material._TextureV1",
-                    type = typeof(ParticleSystemRenderer)
-                };
-                EditorCurveBinding bindV2 = new EditorCurveBinding
-                {
-                    path = "MemeEmitter",
-                    propertyName = "material._TextureV2",
-                    type = typeof(ParticleSystemRenderer)
-                };
-                EditorCurveBinding bindAspectRatio = new EditorCurveBinding
-                {
-                    path = "MemeEmitter",
-                    propertyName = "material._AspectRatio",
-                    type = typeof(ParticleSystemRenderer)
-                };
-                AnimationUtility.SetEditorCurve(animationClip, bindU1, curveU1);
-                AnimationUtility.SetEditorCurve(animationClip, bindU2, curveU2);
-                AnimationUtility.SetEditorCurve(animationClip, bindV1, curveV1);
-                AnimationUtility.SetEditorCurve(animationClip, bindV2, curveV2);
-                AnimationUtility.SetEditorCurve(animationClip, bindAspectRatio, curveRatio);
-                var settting = AnimationUtility.GetAnimationClipSettings(animationClip);
-                settting.loopTime = true;
-                AnimationUtility.SetAnimationClipSettings(animationClip, settting);
-                AssetDatabase.CreateAsset(animationClip, memeAnimDir + "Anim" + item.name + ".anim");
+                    var fpsCurve = new AnimationCurve(new Keyframe[] { new Keyframe(0, item.fps), new Keyframe(0.0166666666666667f, item.fps) });
+                    AnimationUtility.SetEditorCurve(animClip, bindFPS, fpsCurve);
+                    int length = nameLengthMap[item.name];
+                    var lengthCurve = new AnimationCurve(new Keyframe[] { new Keyframe(0, length), new Keyframe(0.0166666666666667f, length) });
+                    AnimationUtility.SetEditorCurve(animClip, bindLength, lengthCurve);
+                }
 
+                AssetDatabase.CreateAsset(animClip, memeAnimDir + item.name + ".asset");
 
+                var stateTmp = stateMachineParameters.AddState(item.name);
+                stateTmp.motion = animClip;
+                
+                var trans8 = disableMemeEmitterState.AddTransition(stateTmp);
+                trans8.exitTime = 0;
+                trans8.hasExitTime = false;
+                trans8.duration = 0;
+                trans8.hasFixedDuration = false;
+                trans8.AddCondition(AnimatorConditionMode.Equals, j + 1, "MemeType_Int");
 
-                var animState = stateMachineUV.AddState("Anim" + item.name);
-                animState.motion = animationClip;
-                nameAnimStateMap[item.name] = animState;
+                var trans9 = stateTmp.AddTransition(disableMemeEmitterState);
+                trans9.hasExitTime = true;
+                trans9.exitTime = 1;
+                trans9.hasFixedDuration = true;
+                trans9.duration = float.MaxValue;
+                trans9.interruptionSource = TransitionInterruptionSource.Destination;
+             
+                j++;
             }
-            AssetDatabase.Refresh();
-            //Transitions
-            foreach (var item in nameAnimStateMap)
+            var parameterDriver = disableMemeEmitterState.AddStateMachineBehaviour<VRCAvatarParameterDriver>();
+            parameterDriver.parameters.Add(new VRC_AvatarParameterDriver.Parameter() { type = VRC_AvatarParameterDriver.ChangeType.Set, name = "MemeType_Int", value = 0 });
+
+
+
+            //Timer
+            var stateMachineTimer = new AnimatorStateMachine()
             {
-                var trans4 = idleState.AddTransition(item.Value);
-                trans4.hasExitTime = false;
-                trans4.exitTime = 0;
-                trans4.hasFixedDuration = true;
-                trans4.duration = 0;
-                trans4.AddCondition(AnimatorConditionMode.Equals, nameIndexMap[item.Key] + 1, "MemeType_Int");
+                name = "MemeEmitterEmissionTimer",
+                hideFlags = HideFlags.HideInHierarchy
+            };
 
-                var trans5 = idleState.AddTransition(item.Value);
-                trans5.hasExitTime = false;
-                trans5.exitTime = 0;
-                trans5.hasFixedDuration = true;
-                trans5.duration = 0;
-                trans5.AddCondition(AnimatorConditionMode.Equals, nameIndexMap[item.Key] + 129, "MemeType_Int");
+            EditorCurveBinding bindTimer = new EditorCurveBinding
+            {
+                path = "MemeEmitter",
+                propertyName = "material._Timer",
+                type = typeof(ParticleSystemRenderer)
+            };
+            var curveTimer = new AnimationCurve(new Keyframe[] {
+                new Keyframe(0,0), new Keyframe(0.0166667f,0)
+            });
+            var curveTimerReset = new AnimationCurve(new Keyframe[] {
+                new Keyframe(0,600), new Keyframe(0.0166667f,600)
+            });
+            AnimationClip animationClipTimer = new AnimationClip { name = "AnimTimer" };
+            AnimationUtility.SetEditorCurve(animationClipTimer, bindTimer, curveTimer);
+     
 
-                var trans6 = item.Value.AddTransition(idleState);
-                trans6.hasExitTime = false;
-                trans6.exitTime = 0;
-                trans6.hasFixedDuration = true;
-                trans6.duration = int.MaxValue;
-                trans6.interruptionSource = TransitionInterruptionSource.Destination;
-                trans6.AddCondition(AnimatorConditionMode.Less, 128, "MemeType_Int");
-                trans6.AddCondition(AnimatorConditionMode.NotEqual, 0, "MemeType_Int");
-            }
+
+            AssetDatabase.CreateAsset(animationClipTimer, memeAnimDir + "timer.anim");
+            var stateTimer =  stateMachineTimer.AddState("Timer");
+            stateTimer.motion = animationClipTimer;
+            
+
+
+            AnimationClip animationClipTimerReset = new AnimationClip { name = "AnimTimerReset" };
+            AnimationUtility.SetEditorCurve(animationClipTimerReset, bindTimer, curveTimerReset);
+            AssetDatabase.CreateAsset(animationClipTimerReset, memeAnimDir + "timerReset.anim");
+
+            var stateTimerReset = stateMachineTimer.AddState("TimerReset");
+            stateTimerReset.motion = animationClipTimerReset;
+            stateMachineTimer.defaultState = stateTimerReset;
+
+
+            var trans10 = stateTimerReset.AddTransition(stateTimer);
+            trans10.exitTime = 0;
+            trans10.hasExitTime = false;
+            trans10.hasFixedDuration = false;
+            trans10.duration = 0;
+            trans10.AddCondition(AnimatorConditionMode.NotEqual, 0, "MemeType_Int");
+            
+
+
+            var trans11 = stateTimer.AddTransition(stateTimerReset);
+            trans11.hasExitTime = true;
+            trans11.exitTime = 1;
+            trans11.hasFixedDuration = true;
+            trans11.duration = 10;
+            trans11.interruptionSource = TransitionInterruptionSource.Destination;
+
+
+            AssetDatabase.AddObjectToAsset(stateMachineTimer, AssetDatabase.GetAssetPath(fxController));
 
             fxController.AddLayer(new AnimatorControllerLayer
             {
-                name = stateMachineEmission.name,
+                name = stateMachineParameters.name,
                 defaultWeight = 1f,
-                stateMachine = stateMachineEmission
+                stateMachine = stateMachineParameters
             });
 
             fxController.AddLayer(new AnimatorControllerLayer
             {
-                name = stateMachineUV.name,
+                name = stateMachineTimer.name,
                 defaultWeight = 1f,
-                stateMachine = stateMachineUV
+                stateMachine = stateMachineTimer
             });
 
 
