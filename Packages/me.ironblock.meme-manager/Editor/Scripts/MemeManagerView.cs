@@ -6,10 +6,11 @@ using System.Threading.Tasks;
 using UnityEditor;
 using UnityEngine;
 using VRC.SDK3.Avatars.Components;
+using static VRCMemeManager.MemeInfoModel;
 
 namespace VRCMemeManager
 {
-    public class MemeManagerWindow : EditorWindow
+    public class MemeManagerView : EditorWindow
     {
         internal const int maxMemeNum = 127;
 
@@ -19,9 +20,9 @@ namespace VRCMemeManager
         private const int minTextureAlatlasSize = 6;
 
         private GameObject avatar;
-        private MemeManagerParameter parameter;
+        private MenuParameter parameter;
         private string avatarId;
-        private List<MemeManagerUtils.MemeItemInfo> memeItemList = new List<MemeManagerUtils.MemeItemInfo>();
+        private List<MemeUIInfo> memeItemList = new List<MemeUIInfo>();
 
 
         private void OnEnable()
@@ -61,7 +62,7 @@ namespace VRCMemeManager
                 memeItemList.Clear();
                 if (avatar != null)
                 {
-                    avatarId = MoyuToolkitUtils.GetOrCreateAvatarId(avatar);
+                    avatarId = Utils.GetOrCreateAvatarId(avatar);
                     ReadParameter();
                 }
             }
@@ -73,7 +74,7 @@ namespace VRCMemeManager
             }
             else if (parameter == null)
             {
-                parameter = MemeManagerUtils.CreateMemeManagerParameter(avatar);
+                parameter = MemeManagerController.CreateMemeManagerParameter(avatar);
                 ReadParameter();
             }
             else
@@ -95,7 +96,7 @@ namespace VRCMemeManager
                         memeNameList.Add(info.name);
                     // 遍历信息
                     EditorGUILayout.LabelField("表情包列表：");
-                    var classify = MemeManagerUtils.HasClassify(memeItemList);
+                    var classify = MemeManagerController.HasClassify(memeItemList);
                     for (var index = 0; index < sum; index++)
                     {
                         var info = memeItemList[index];
@@ -129,12 +130,12 @@ namespace VRCMemeManager
                             GUILayout.FlexibleSpace();
                             if (index > 0 && GUILayout.Button("上移", GUILayout.Width(60)))
                             {
-                                MoyuToolkitUtils.MoveListItem(ref memeItemList, index, index - 1);
+                                Utils.MoveListItem(ref memeItemList, index, index - 1);
                                 break;
                             }
                             else if (index < memeItemList.Count - 1 && GUILayout.Button("下移", GUILayout.Width(60)))
                             {
-                                MoyuToolkitUtils.MoveListItem(ref memeItemList, index, index + 1);
+                                Utils.MoveListItem(ref memeItemList, index, index + 1);
                                 break;
                             }
                             if (GUILayout.Button("删除", GUILayout.Width(60)))
@@ -204,7 +205,7 @@ namespace VRCMemeManager
                         EditorGUILayout.HelpBox("最多只能添加" + maxMemeNum + "个表情包", MessageType.Info);
                     }
                     else { 
-                        MemeManagerUtils.ApplyToAvatar(avatar, parameter, (int)Math.Pow(2.0, textureAlatlasSize + minTextureAlatlasSize));
+                        MemeManagerController.ApplyToAvatar(avatar, parameter);
                     }
                 
                 }
@@ -219,7 +220,7 @@ namespace VRCMemeManager
             foreach (var info in memeItemList)
                 info.animBool.target = false;
             var name = "表情包" + (memeItemList.Count + 1).ToString();
-            var actionItemInfo = new MemeManagerUtils.MemeItemInfo(name);
+            var actionItemInfo = new MemeUIInfo(name);
             actionItemInfo.animBool.valueChanged.AddListener(Repaint);
             actionItemInfo.animBool.target = true;
             memeItemList.Add(actionItemInfo);
@@ -236,11 +237,11 @@ namespace VRCMemeManager
         {
             memeItemList.Clear();
             if (avatarId == null) return;
-            if (parameter == null) parameter = MemeManagerUtils.GetMemeManagerParameter(avatarId);
+            if (parameter == null) parameter = Utils.GetMemeManagerParameter(avatarId);
             if (parameter == null) return;
             foreach (var info in parameter.memeList)
             {
-                var item = new MemeManagerUtils.MemeItemInfo(info);
+                var item = new MemeUIInfo(info);
                 item.animBool.valueChanged.AddListener(Repaint);
                 memeItemList.Add(item);
             }
@@ -248,10 +249,10 @@ namespace VRCMemeManager
         private void WriteParameter()
         {
             if (parameter == null) return;
-            var actionList = new List<MemeManagerParameter.MemeInfo>();
+            var actionList = new List<MemeInfoData>();
             foreach (var info in memeItemList)
             {
-                var item = new MemeManagerParameter.MemeInfo(info);
+                var item = new MemeInfoData(info);
                 actionList.Add(item);
             }
             parameter.memeList = actionList;
