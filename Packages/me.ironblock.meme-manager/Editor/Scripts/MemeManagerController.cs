@@ -9,198 +9,32 @@ using static VRC.SDK3.Avatars.Components.VRCAvatarDescriptor;
 using VRC.SDKBase;
 using VRC.SDK3.Avatars.ScriptableObjects;
 using System.Reflection;
+using static VRCMemeManager.MemeInfoModel;
 
 namespace VRCMemeManager
 {
-    public class MemeManagerUtils
+    public class MemeManagerController
     {
-        [System.Serializable]
-        public class MemeItemInfo
-        {
-            public string name;
-            public string type;
-            public Texture2D memeTexture;
-            public bool isGIF;
-            public int fps;
-            public bool keepAspectRatio;
-
-            public AnimBool animBool = new AnimBool { speed = 3.0f };
-
-            public MemeItemInfo(string _name = "新表情", string _type = "")
-            {
-                name = _name;
-                type = _type;
-            }
-            public MemeItemInfo(MemeManagerParameter.MemeInfo info)
-            {
-                name = info.name;
-                type = info.type;
-                memeTexture = info.memeTexture;
-                isGIF = info.isGIF;
-                fps = info.fps;
-                keepAspectRatio = info.keepAspectRatio;
-            }
-        }
-
-        public static Texture2DArray GifToTextureArray(string path)
-        {
-            List<Texture2D> array = GetGifFrames(path);
-            if (array == null) return null;
-            if (array.Count == 0)
-            {
-                Debug.LogError("Gif is empty or System.Drawing is not working. Try right clicking and reimporting the \"Thry Editor\" Folder!");
-                return null;
-            }
-            Texture2DArray arrayTexture = Textre2DArrayToAsset(array.ToArray());
-            return arrayTexture;
-        }
-
-        public static List<Texture2D> GetGifFrames(string path)
-        {
-            List<Texture2D> gifFrames = new List<Texture2D>();
-#if SYSTEM_DRAWING
-            var gifImage = System.Drawing.Image.FromFile(path);
-            var dimension = new System.Drawing.Imaging.FrameDimension(gifImage.FrameDimensionsList[0]);
-
-            int width = Mathf.ClosestPowerOfTwo(gifImage.Width - 1);
-            int height = Mathf.ClosestPowerOfTwo(gifImage.Height - 1);
-
-            bool hasAlpha = false;
-
-            int frameCount = gifImage.GetFrameCount(dimension);
-
-            float totalProgress = frameCount * width;
-            for (int i = 0; i < frameCount; i++)
-            {
-                gifImage.SelectActiveFrame(dimension, i);
-                var ogframe = new System.Drawing.Bitmap(gifImage.Width, gifImage.Height);
-                System.Drawing.Graphics.FromImage(ogframe).DrawImage(gifImage, System.Drawing.Point.Empty);
-                var frame = ResizeBitmap(ogframe, width, height);
-
-                Texture2D frameTexture = new Texture2D(frame.Width, frame.Height);
-
-                float doneProgress = i * width;
-                for (int x = 0; x < frame.Width; x++)
-                {
-                    if (x % 20 == 0)
-                        if (EditorUtility.DisplayCancelableProgressBar("From GIF", "Frame " + i + ": " + (int)((float)x / width * 100) + "%", (doneProgress + x + 1) / totalProgress))
-                        {
-                            EditorUtility.ClearProgressBar();
-                            return null;
-                        }
-
-                    for (int y = 0; y < frame.Height; y++)
-                    {
-                        System.Drawing.Color sourceColor = frame.GetPixel(x, y);
-                        frameTexture.SetPixel(x, frame.Height - 1 - y, new UnityEngine.Color32(sourceColor.R, sourceColor.G, sourceColor.B, sourceColor.A));
-                        if (sourceColor.A < 255.0f)
-                        {
-                            hasAlpha = true;
-                        }
-                    }
-                }
-
-                frameTexture.Apply();
-                gifFrames.Add(frameTexture);
-            }
-            EditorUtility.ClearProgressBar();
-            //Debug.Log("has alpha? " + hasAlpha);
-            for (int i = 0; i < frameCount; i++)
-            {
-                EditorUtility.CompressTexture(gifFrames[i], hasAlpha ? TextureFormat.DXT5 : TextureFormat.DXT1, UnityEditor.TextureCompressionQuality.Best);
-                gifFrames[i].Apply(true, false);
-            }
-#endif
-            return gifFrames;
-        }
-#if SYSTEM_DRAWING
-        public static System.Drawing.Bitmap ResizeBitmap(System.Drawing.Image image, int width, int height)
-        {
-            var destRect = new System.Drawing.Rectangle(0, 0, width, height);
-            var destImage = new System.Drawing.Bitmap(width, height);
-
-            destImage.SetResolution(image.HorizontalResolution, image.VerticalResolution);
-
-            using (var graphics = System.Drawing.Graphics.FromImage(destImage))
-            {
-                graphics.CompositingMode = System.Drawing.Drawing2D.CompositingMode.SourceCopy;
-                graphics.CompositingQuality = System.Drawing.Drawing2D.CompositingQuality.HighQuality;
-                graphics.InterpolationMode = System.Drawing.Drawing2D.InterpolationMode.HighQualityBicubic;
-                graphics.SmoothingMode = System.Drawing.Drawing2D.SmoothingMode.HighQuality;
-                graphics.PixelOffsetMode = System.Drawing.Drawing2D.PixelOffsetMode.HighQuality;
-
-                using (var wrapMode = new System.Drawing.Imaging.ImageAttributes())
-                {
-                    wrapMode.SetWrapMode(System.Drawing.Drawing2D.WrapMode.TileFlipXY);
-                    graphics.DrawImage(image, destRect, 0, 0, image.Width, image.Height, System.Drawing.GraphicsUnit.Pixel, wrapMode);
-                }
-            }
-
-            return destImage;
-        }
-#endif
-
-        private static Texture2DArray Textre2DArrayToAsset(Texture2D[] array)
-        {
-            Texture2DArray texture2DArray = new Texture2DArray(array[0].width, array[0].height, array.Length, array[0].format, true);
-
-#if SYSTEM_DRAWING
-            for (int i = 0; i < array.Length; i++)
-            {
-                for (int m = 0; m < array[i].mipmapCount; m++)
-                {
-                    UnityEngine.Graphics.CopyTexture(array[i], 0, m, texture2DArray, i, m);
-                }
-            }
-#endif
-
-            texture2DArray.anisoLevel = array[0].anisoLevel;
-            texture2DArray.wrapModeU = array[0].wrapModeU;
-            texture2DArray.wrapModeV = array[0].wrapModeV;
-
-            texture2DArray.Apply(false, true);
-
-            return texture2DArray;
-        }
     
 
     // 创建表情包参数文件
-    internal static MemeManagerParameter CreateMemeManagerParameter(GameObject avatar)
+    internal static MenuParameter CreateMemeManagerParameter(GameObject avatar)
         {
             if (avatar == null)
                 return null;
-            var parameter = ScriptableObject.CreateInstance<MemeManagerParameter>();
-            var avatarId = MoyuToolkitUtils.GetOrCreateAvatarId(avatar);
+            var parameter = ScriptableObject.CreateInstance<MenuParameter>();
+            var avatarId = Utils.GetOrCreateAvatarId(avatar);
             parameter.avatarId = avatarId;
-            parameter.memeList.Add(new MemeManagerParameter.MemeInfo { name = "表情包1", type = "" });
-            var dir = GetParameterDirPath(avatarId, "");
+            parameter.memeList.Add(new MemeInfoData { name = "表情包1", type = "" });
+            var dir = Utils.GetParameterDirPath(avatarId, "");
             if (!Directory.Exists(dir))
                 Directory.CreateDirectory(dir);
-            AssetDatabase.CreateAsset(parameter, GetParameterDirPath(avatarId, "MemeManagerParameter.asset"));
+            AssetDatabase.CreateAsset(parameter, Utils.GetParameterDirPath(avatarId, "MemeManagerParameter.asset"));
             return parameter;
         }
-        // 获取表情包参数文件
-        internal static MemeManagerParameter GetMemeManagerParameter(string avatarId)
-        {
-            if (avatarId == null)
-                return null;
-            var path = GetParameterDirPath(avatarId, "/MemeManagerParameter.asset");
-            if (File.Exists(path))
-            {
-                var parameter = AssetDatabase.LoadAssetAtPath(path, typeof(MemeManagerParameter)) as MemeManagerParameter;
-                return parameter;
-            }
-            return null;
-        }
-
-        // 获取该模型的参数文件存放位置
-        internal static string GetParameterDirPath(string avatarId, string path)
-        {
-            return "Assets/AvatarData/" + avatarId + "/" + path;
-        }
-
+       
         // 通过检测type字段，判断是否为分类模式
-        internal static bool HasClassify(List<MemeManagerParameter.MemeInfo> list)
+        internal static bool HasClassify(List<MemeInfoData> list)
         {
             foreach (var item in list)
                 if (item.type != null && item.type.Length > 0)
@@ -208,7 +42,7 @@ namespace VRCMemeManager
             return false;
         }
         // 通过检测type字段，判断是否为分类模式
-        internal static bool HasClassify(List<MemeItemInfo> list)
+        internal static bool HasClassify(List<MemeUIInfo> list)
         {
             foreach (var item in list)
                 if (item.type != null && item.type.Length > 0)
@@ -217,9 +51,9 @@ namespace VRCMemeManager
         }
 
         // 应用到模型
-        internal static void ApplyToAvatar(GameObject avatar, MemeManagerParameter parameter, int textureAlatlasSize)
+        internal static void ApplyToAvatar(GameObject avatar, MenuParameter parameter)
         {
-            var memeList = new List<MemeManagerParameter.MemeInfo>();
+            var memeList = new List<MemeInfoData>();
             var _memeList = parameter.memeList;
             foreach (var info in _memeList)
             {
@@ -227,8 +61,8 @@ namespace VRCMemeManager
                 memeList.Add(info);
             }
 
-            var avatarId = MoyuToolkitUtils.GetAvatarId(avatar);
-            var dirPath = GetParameterDirPath(avatarId, "");
+            var avatarId = Utils.GetAvatarId(avatar);
+            var dirPath = Utils.GetParameterDirPath(avatarId, "");
             var descriptor = avatar.GetComponent<VRCAvatarDescriptor>();
             
             var expressionParameters = descriptor.expressionParameters;
@@ -278,7 +112,7 @@ namespace VRCMemeManager
                 if (item.isGIF)
                 {
                     material = new Material(shaderGif);
-                    var t2da = GifToTextureArray(AssetDatabase.GetAssetPath(item.memeTexture));
+                    var t2da = Utils.GifToTextureArray(AssetDatabase.GetAssetPath(item.memeTexture));
                     nameLengthMap.Add(item.name, t2da.depth);
                     tex = t2da;
                     AssetDatabase.CreateAsset(tex, textureDir + item.name + ".asset");
@@ -332,7 +166,7 @@ namespace VRCMemeManager
                 }
             }
 
-            MoyuToolkitUtils.AddControllerParameter(fxController, "MemeType_Int", AnimatorControllerParameterType.Int);
+            Utils.AddControllerParameter(fxController, "MemeType_Int", AnimatorControllerParameterType.Int);
             if (fxController == null)
             {
                 EditorUtility.DisplayDialog("错误", "发生意料之外的情况，请重新设置 AvatarDescriptor 中的 Playable Layers 后再试！", "确认");
@@ -574,12 +408,12 @@ namespace VRCMemeManager
                 {
                     var hasClassify = HasClassify(memeList);
                     // 归类
-                    var memeTypeMap = new Dictionary<string, List<MemeManagerParameter.MemeInfo>>();
+                    var memeTypeMap = new Dictionary<string, List<MemeInfoData>>();
                     foreach (var info in memeList)
                     {
                         var type = (info.type.Length == 0 ? "未分类" : info.type);
                         if (!memeTypeMap.ContainsKey(type))
-                            memeTypeMap.Add(type, new List<MemeManagerParameter.MemeInfo>());
+                            memeTypeMap.Add(type, new List<MemeInfoData>());
                         memeTypeMap[type].Add(info);
                     }
 

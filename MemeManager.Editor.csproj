@@ -56,11 +56,11 @@
     <Analyzer Include="C:\Program Files\Microsoft Visual Studio\2022\Community\Common7\IDE\Extensions\Microsoft\Visual Studio Tools for Unity\Analyzers\Microsoft.Unity.Analyzers.dll" />
   </ItemGroup>
   <ItemGroup>
+    <Compile Include="Packages\me.ironblock.meme-manager\Editor\Scripts\MemeInfoModel.cs" />
     <Compile Include="Packages\me.ironblock.meme-manager\Editor\Scripts\MemeManager.cs" />
-    <Compile Include="Packages\me.ironblock.meme-manager\Editor\Scripts\MemeManagerParameter.cs" />
-    <Compile Include="Packages\me.ironblock.meme-manager\Editor\Scripts\MemeManagerUtils.cs" />
-    <Compile Include="Packages\me.ironblock.meme-manager\Editor\Scripts\MemeManagerWindow.cs" />
-    <Compile Include="Packages\me.ironblock.meme-manager\Editor\Scripts\MoyuToolkitUtils.cs" />
+    <Compile Include="Packages\me.ironblock.meme-manager\Editor\Scripts\MemeManagerController.cs" />
+    <Compile Include="Packages\me.ironblock.meme-manager\Editor\Scripts\MemeManagerView.cs" />
+    <Compile Include="Packages\me.ironblock.meme-manager\Editor\Scripts\Utils.cs" />
   </ItemGroup>
   <ItemGroup>
     <None Include="Packages\me.ironblock.meme-manager\Editor\Assets\Resources\Materials\MemeEmitterShaderGif.shader" />
