@@ -36,7 +36,7 @@ namespace VRCMemeManager
             }
             public MemeUIInfo(MemeInfoData info)
             {
-                name = info.uniqueName;
+                name = info.name;
                 type = info.type;
                 memeTexture = info.memeTexture;
                 isGIF = info.isGIF;
@@ -51,12 +51,12 @@ namespace VRCMemeManager
          
          */
         [System.Serializable]
-        public class MemeInfoData : ScriptableObject
+        public class MemeInfoData
         {
 
 
             public AnimBool animBool = new AnimBool { speed = 3.0f };
-            public string uniqueName; //唯一名称
+            public string name; //唯一名称
             public string type; //分类
             public Texture2D memeTexture; //表情包
             public bool isGIF;
@@ -68,7 +68,7 @@ namespace VRCMemeManager
 
             public MemeInfoData(MemeUIInfo info)
             {
-                uniqueName = info.name;
+                name = info.name;
                 type = info.type;
                 memeTexture = info.memeTexture;
                 isGIF = info.isGIF;
