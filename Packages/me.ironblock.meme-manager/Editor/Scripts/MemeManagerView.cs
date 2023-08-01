@@ -16,8 +16,6 @@ namespace VRCMemeManager
 
         private Vector2 mainScrollPos;
 
-        private int textureAlatlasSize = 4;
-        private const int minTextureAlatlasSize = 6;
 
         private GameObject avatar;
         private MenuParameter parameter;
@@ -79,7 +77,6 @@ namespace VRCMemeManager
             }
             else
             {
-                textureAlatlasSize = EditorGUILayout.IntField("表情包贴图质量(越高越好)：", textureAlatlasSize);
 
                 mainScrollPos = GUILayout.BeginScrollView(mainScrollPos);
                 // 主UI

@@ -1,7 +1,7 @@
 {
   "name": "me.ironblock.meme-manager",
   "displayName": "MemeManager",
-  "version": "0.0.1",
+  "version": "0.1.0",
   "unity": "2019.4",
   "type": "tool",
   "vrchatVersion": "2022.1.1",
@@ -11,8 +11,6 @@
     "url": "https://mmmlabs.com"
   },
   "unityRelease": "31f1",
-  "description": "A tool that can make it easy to add memes to an avatar.",
-  "dependencies": {
-    "com.vrchat.avatars": "3.2.1"
-  }
+  "description": "\u4e00\u4e2a\u65b9\u4fbf\u7ed9\u6a21\u578b\u52a0\u8868\u60c5\u5305\u7684\u5de5\u5177",
+  "hideInEditor": false
 }
