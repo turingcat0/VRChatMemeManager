@@ -11,7 +11,7 @@ VRChat 表情包管理器是一个为VRChat开发者设计的工具，允许你�
 
 
 ## 安装
-1. 下载本插件的UnityPackage([从Github上下载](https://github.com/ASimpleIronBlock/VRChatMemeManager/releases)或者在[Booth上下载]())
+1. 下载本插件的UnityPackage([从Github上下载](https://github.com/ASimpleIronBlock/VRChatMemeManager/releases)或者在[Booth上下载](https://ironblock.booth.pm/items/4972532))
 2. 导入下载的UnityPackage
 
 
