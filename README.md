@@ -2,7 +2,7 @@
 
 ![GitHub](https://img.shields.io/github/license/ASimpleIronBlock/VRChatMemeManager)
 
-VRChat 表情包管理器是一个为VRChat开发者设计的工具，允许你为VRChat模型添加表情包，包括动态图和静态图片。这个工具让你可以更轻松地定制和丰富你的VRChat模型的表现力，让你的模型在VRChat世界中更加生动和有趣。
+VRChat 表情包管理器是一个允许你为VRChat模型添加表情包，包括动态图和静态图片的工具。
 
 ## 功能特性
 
