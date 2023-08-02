@@ -60,6 +60,7 @@
     <Compile Include="Packages\me.ironblock.meme-manager\Editor\Scripts\MemeManager.cs" />
     <Compile Include="Packages\me.ironblock.meme-manager\Editor\Scripts\MemeManagerController.cs" />
     <Compile Include="Packages\me.ironblock.meme-manager\Editor\Scripts\MemeManagerView.cs" />
+    <Compile Include="Packages\me.ironblock.meme-manager\Editor\Scripts\MenuParameter.cs" />
     <Compile Include="Packages\me.ironblock.meme-manager\Editor\Scripts\Utils.cs" />
   </ItemGroup>
   <ItemGroup>

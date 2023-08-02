@@ -78,14 +78,7 @@ namespace VRCMemeManager
 #endif
         }
 
-        /*
-         用来储存所有表情包信息和参数的类
-         */
-        public class MenuParameter : ScriptableObject
-        {
-            public string avatarId; // 绑定模型ID
-            public List<MemeInfoData> memeList = new List<MemeInfoData>(); // 衣服列表
-        }
+       
 
     }
 }
