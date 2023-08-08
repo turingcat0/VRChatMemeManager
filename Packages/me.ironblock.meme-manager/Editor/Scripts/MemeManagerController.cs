@@ -290,81 +290,12 @@ namespace VRCMemeManager
             parameterDriver.parameters.Add(new VRC_AvatarParameterDriver.Parameter() { type = VRC_AvatarParameterDriver.ChangeType.Set, name = "MemeType_Int", value = 0 });
 
 
-
-            //Timer
-            var stateMachineTimer = new AnimatorStateMachine()
-            {
-                name = "MemeEmitterEmissionTimer",
-                hideFlags = HideFlags.HideInHierarchy
-            };
-
-            EditorCurveBinding bindTimer = new EditorCurveBinding
-            {
-                path = "MemeEmitter",
-                propertyName = "material._Timer",
-                type = typeof(ParticleSystemRenderer)
-            };
-            var curveTimer = new AnimationCurve(new Keyframe[] {
-                new Keyframe(0,0), new Keyframe(0.0166667f,0)
-            });
-            var curveTimerReset = new AnimationCurve(new Keyframe[] {
-                new Keyframe(0,600), new Keyframe(0.0166667f,600)
-            });
-            AnimationClip animationClipTimer = new AnimationClip { name = "AnimTimer" };
-            AnimationUtility.SetEditorCurve(animationClipTimer, bindTimer, curveTimer);
-     
-
-
-            AssetDatabase.CreateAsset(animationClipTimer, memeAnimDir + "timer.anim");
-            var stateTimer =  stateMachineTimer.AddState("Timer");
-            stateTimer.motion = animationClipTimer;
-            
-
-
-            AnimationClip animationClipTimerReset = new AnimationClip { name = "AnimTimerReset" };
-            AnimationUtility.SetEditorCurve(animationClipTimerReset, bindTimer, curveTimerReset);
-            AssetDatabase.CreateAsset(animationClipTimerReset, memeAnimDir + "timerReset.anim");
-
-            var stateTimerReset = stateMachineTimer.AddState("TimerReset");
-            stateTimerReset.motion = animationClipTimerReset;
-            stateMachineTimer.defaultState = stateTimerReset;
-
-
-            var trans10 = stateTimerReset.AddTransition(stateTimer);
-            trans10.exitTime = 0;
-            trans10.hasExitTime = false;
-            trans10.hasFixedDuration = false;
-            trans10.duration = 0;
-            trans10.AddCondition(AnimatorConditionMode.NotEqual, 0, "MemeType_Int");
-            
-
-
-            var trans11 = stateTimer.AddTransition(stateTimerReset);
-            trans11.hasExitTime = true;
-            trans11.exitTime = 1;
-            trans11.hasFixedDuration = true;
-            trans11.duration = 10;
-            trans11.interruptionSource = TransitionInterruptionSource.Destination;
-
-
-            AssetDatabase.AddObjectToAsset(stateMachineTimer, AssetDatabase.GetAssetPath(fxController));
-
             fxController.AddLayer(new AnimatorControllerLayer
             {
                 name = stateMachineParameters.name,
                 defaultWeight = 1f,
                 stateMachine = stateMachineParameters
             });
-
-            fxController.AddLayer(new AnimatorControllerLayer
-            {
-                name = stateMachineTimer.name,
-                defaultWeight = 1f,
-                stateMachine = stateMachineTimer
-            });
-
-
-
 
 
 

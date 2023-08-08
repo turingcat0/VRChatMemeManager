@@ -4,18 +4,16 @@ Shader "MemeManager/MemeEmitterShader"
     {
          _MainTex ("Tex", 2D) = "" {}
         _AspectRatio("aspect", float) = 1.0
-        _Timer("Timer", Int) = 0
     }
     SubShader
     {
-        Tags { "RenderType"="Opaque" }
-
+        Tags { "RenderType"="Transparent" "Queue" = "Transparent" "IgnoreProjector"="True"}
+        Blend SrcAlpha OneMinusSrcAlpha
         Pass
         {
             CGPROGRAM
             #pragma vertex vert
             #pragma fragment frag
-            #pragma require 2darray
 
             #include "UnityCG.cginc"
 
