@@ -4,14 +4,14 @@ Shader "MemeManager/MemeEmitterShader"
     {
          _MainTex ("Tex", 2DArray) = "" {}
         _AspectRatio("aspect", float) = 1.0
-        _Timer("Timer", Int) = 0
         _FPS("FPS", Int) = 0
         _Length("Length", Int) = 0      //表示动图有多少帧
     }
     SubShader
     {
-        Tags { "RenderType"="Opaque" }
+        Tags { "RenderType"="Transparent" "Queue" = "Transparent"  "IgnoreProjector"="True"}
 
+        Blend SrcAlpha OneMinusSrcAlpha
         Pass
         {
             CGPROGRAM
@@ -35,7 +35,6 @@ Shader "MemeManager/MemeEmitterShader"
 
             UNITY_DECLARE_TEX2DARRAY (_MainTex);
             float _AspectRatio;
-            int _Timer;
             int _FPS;
             int _Length;
 
@@ -46,8 +45,7 @@ Shader "MemeManager/MemeEmitterShader"
                 clipPos.y *= _AspectRatio;
                 o.vertex = clipPos;
                 o.uv.xy = v.uv.xy;
-                o.uv.z = ((uint)(_Timer * (_FPS / 60.0f)) % _Length);
-                // o.uv.z = 0;
+                o.uv.z = ((uint)(_Time.y * (_FPS)) % _Length);
                 return o;
             }
 
