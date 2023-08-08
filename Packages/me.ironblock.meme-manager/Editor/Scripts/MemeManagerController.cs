@@ -115,7 +115,7 @@ namespace VRCMemeManager
                     var t2da = Utils.GifToTextureArray(AssetDatabase.GetAssetPath(item.memeTexture));
                     nameLengthMap.Add(item.name, t2da.depth);
                     tex = t2da;
-                    AssetDatabase.CreateAsset(tex, textureDir + item.name + ".asset");
+                    AssetDatabase.CreateAsset(tex, textureDir + item.name.GetHashCode() + ".asset");
                 }
                 else {
                     material = new Material(shader);
@@ -126,7 +126,7 @@ namespace VRCMemeManager
                 
                 material.mainTexture = tex;
 
-                AssetDatabase.CreateAsset(material, textureDir + item.name + ".mat");
+                AssetDatabase.CreateAsset(material, textureDir + item.name.GetHashCode() + ".mat");
                 
             }
 
@@ -265,7 +265,7 @@ namespace VRCMemeManager
                     AnimationUtility.SetEditorCurve(animClip, bindLength, lengthCurve);
                 }
 
-                AssetDatabase.CreateAsset(animClip, memeAnimDir + item.name + ".asset");
+                AssetDatabase.CreateAsset(animClip, memeAnimDir + item.name.GetHashCode() + ".asset");
 
                 var stateTmp = stateMachineParameters.AddState(item.name);
                 stateTmp.motion = animClip;
@@ -482,7 +482,7 @@ namespace VRCMemeManager
                         int index = 0;
                         foreach (var item1 in menuList)
                         {
-                            AssetDatabase.CreateAsset(item1, menuDir + "MemeType_" + name + "_" + (index) + ".asset");
+                            AssetDatabase.CreateAsset(item1, menuDir + "MemeType_" + name.GetHashCode() + "_" + (index) + ".asset");
                             index++;
                         }
 
