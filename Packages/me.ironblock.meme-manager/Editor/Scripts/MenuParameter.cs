@@ -15,6 +15,8 @@ namespace VRCMemeManager
     public class MenuParameter : ScriptableObject
     {
         public string avatarId; // 绑定模型ID
+        public string menuPath;
+        public string menuName;
         public List<MemeInfoData> memeList = new List<MemeInfoData>(); // 衣服列表
     }
 }

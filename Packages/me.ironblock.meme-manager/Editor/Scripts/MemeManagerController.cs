@@ -10,13 +10,12 @@ using VRC.SDKBase;
 using VRC.SDK3.Avatars.ScriptableObjects;
 using System.Reflection;
 using static VRCMemeManager.MemeInfoModel;
+using static VRC.SDK3.Avatars.ScriptableObjects.VRCExpressionsMenu;
 
 namespace VRCMemeManager
 {
     public class MemeManagerController
     {
-    
-
     // 创建表情包参数文件
     internal static MenuParameter CreateMemeManagerParameter(GameObject avatar)
         {
@@ -48,6 +47,42 @@ namespace VRCMemeManager
                 if (item.type != null && item.type.Length > 0)
                     return true;
             return false;
+        }
+
+        internal static VRCExpressionsMenu SearchOrCreateSubMenu(string menuAssetDir,VRCExpressionsMenu root, string[] paths, int currentIndex)
+        {
+            if (paths.Length == currentIndex)
+            {
+                return root;
+            }
+            // 表情包
+            foreach (var control in root.controls)
+            {
+                if (control.name.Equals(paths[currentIndex]))
+                {
+
+                    if (control.type != VRCExpressionsMenu.Control.ControlType.SubMenu)
+                    {
+                        EditorUtility.DisplayDialog("提醒", "您所输入的菜单路径不是子菜单", "确认");
+                        return null;
+                    }
+                    else
+                    {
+                        return SearchOrCreateSubMenu(menuAssetDir,control.subMenu, paths, currentIndex + 1);
+                    }
+                }
+            }
+
+            var subMenu = ScriptableObject.CreateInstance<VRCExpressionsMenu>();
+            AssetDatabase.CreateAsset(subMenu, menuAssetDir + paths[currentIndex] + ".asset");
+            root.controls.Add(new VRCExpressionsMenu.Control
+            {
+                name = paths[currentIndex],
+                type = VRCExpressionsMenu.Control.ControlType.SubMenu,
+                subMenu = subMenu,
+            });
+            EditorUtility.SetDirty(root);
+            return SearchOrCreateSubMenu(menuAssetDir, subMenu, paths, currentIndex + 1);
         }
 
         // 应用到模型
@@ -424,30 +459,34 @@ namespace VRCMemeManager
                 }
 
                 // 配置主菜单
+                var menuPath = parameter.menuPath;
+                var menuName = parameter.menuName;
+
                 if (expressionsMenu == null)
                     expressionsMenu = ScriptableObject.CreateInstance<VRCExpressionsMenu>();
-                VRCExpressionsMenu.Control memeControl = null;
-                // 表情包
-                foreach (var control in expressionsMenu.controls)
-                {
-                    if (control.type == VRCExpressionsMenu.Control.ControlType.SubMenu)
-                    {
-                        if (control.name == "表情包")
-                            memeControl = control;
-                    }
-                }
-                if (memeControl == null)
+                if (menuPath.Equals(""))
                 {
                     expressionsMenu.controls.Add(new VRCExpressionsMenu.Control
                     {
-                        name = "表情包",
+                        name = menuName,
                         type = VRCExpressionsMenu.Control.ControlType.SubMenu,
                         subMenu = mainMemeMenu,
                     });
                 }
-                else
+                else 
                 {
-                    memeControl.subMenu = mainMemeMenu;
+                    var paths = menuPath.Split('/');
+                    var finalMenu = SearchOrCreateSubMenu(menuDir, expressionsMenu, paths, 0);
+                    if (finalMenu == null)
+                    {
+                        return;
+                    }
+                    finalMenu.controls.Add(new VRCExpressionsMenu.Control
+                    {
+                        name = menuName,
+                        type = VRCExpressionsMenu.Control.ControlType.SubMenu,
+                        subMenu = mainMemeMenu,
+                    });
                 }
                 if (AssetDatabase.GetAssetPath(expressionsMenu) == "")
                     AssetDatabase.CreateAsset(expressionsMenu, dirPath + "ExpressionsMenu.asset");
