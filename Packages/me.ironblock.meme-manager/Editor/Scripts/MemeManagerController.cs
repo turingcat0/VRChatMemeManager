@@ -109,6 +109,8 @@ namespace VRCMemeManager
             if (oldParent != null)
             {
                 oldParent.transform.localPosition = Vector3.zero;
+                oldParent.transform.localRotation = Quaternion.identity;
+                oldParent.transform.localScale = Vector3.one;
             }
 
             if (oldParent != null)
@@ -234,6 +236,9 @@ namespace VRCMemeManager
                 memeEmitter.gameObject.name = item.name;
                 memeEmitter.transform.SetParent(newParent.transform);
                 memeEmitter.transform.localPosition = Vector3.zero;
+                memeEmitter.transform.localRotation = Quaternion.identity;
+                memeEmitter.transform.localScale = Vector3.one;
+
                 memeEmitter.GetComponent<ParticleSystemRenderer>().material = material;
 
                 var memeController = new AnimatorStateMachine()
@@ -245,10 +250,10 @@ namespace VRCMemeManager
 
                 var clipEnable = new AnimationClip { name = "Enable" + item.name.GetHashCode().ToString() };
                 var clipDisable = new AnimationClip { name = "Disable" + item.name.GetHashCode().ToString() };
-                var frameEnable = new Keyframe { time = 0, value = 1 };
-                var frameDisable = new Keyframe { time = 0, value = 0 };
-                var curveEnable = new AnimationCurve { keys = new Keyframe[] { frameEnable } };
-                var curveDisable = new AnimationCurve { keys = new Keyframe[] { frameDisable } };
+                var frameEnable = new Keyframe []{ new Keyframe { time = 0, value = 1 } , new Keyframe { time = item.playTime, value = 1} };
+                var frameDisable = new Keyframe []{ new Keyframe { time = 0, value = 0} , new Keyframe { time = item.playTime, value = 0 } };
+                var curveEnable = new AnimationCurve { keys = frameEnable };
+                var curveDisable = new AnimationCurve { keys = frameDisable };
                 EditorCurveBinding bindActive = new EditorCurveBinding
                 {
                     path = VRC.Core.ExtensionMethods.GetHierarchyPath(memeEmitter.transform, avatar.transform),

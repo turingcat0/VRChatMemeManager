@@ -25,6 +25,7 @@ namespace VRCMemeManager
             public Texture2D memeTexture;
             public bool isGIF;
             public int fps;
+            public float playTime;
             public bool keepAspectRatio;
 
             public AnimBool animBool = new AnimBool { speed = 3.0f };
@@ -42,6 +43,7 @@ namespace VRCMemeManager
                 isGIF = info.isGIF;
                 fps = info.fps;
                 keepAspectRatio = info.keepAspectRatio;
+                playTime = info.playTime;
             }
         }
 
@@ -61,6 +63,7 @@ namespace VRCMemeManager
             public Texture2D memeTexture; //表情包
             public bool isGIF;
             public int fps;
+            public float playTime;
             public bool keepAspectRatio;
 
             public MemeInfoData() { }
@@ -74,6 +77,7 @@ namespace VRCMemeManager
                 isGIF = info.isGIF;
                 fps = info.fps;
                 keepAspectRatio = info.keepAspectRatio;
+                playTime = info.playTime;
             }
 #endif
         }

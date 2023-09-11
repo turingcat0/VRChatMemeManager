@@ -174,6 +174,8 @@ namespace VRCMemeManager
                             EditorGUILayout.BeginVertical();
                             EditorGUILayout.LabelField("分类", GUILayout.Width(55));
                             info.type = EditorGUILayout.TextField(info.type).Trim();
+                            EditorGUILayout.LabelField("表情发射时间(秒)", GUILayout.Width(120));
+                            info.playTime = float.Parse(EditorGUILayout.TextField(info.playTime.ToString()).Trim());
                             info.keepAspectRatio = EditorGUILayout.Toggle("保持长宽比：", info.keepAspectRatio);
                             info.isGIF = EditorGUILayout.Toggle("是否为动图：", info.isGIF);
                             if (info.isGIF)
