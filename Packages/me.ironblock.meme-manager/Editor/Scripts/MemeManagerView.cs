@@ -48,6 +48,7 @@ namespace VRCMemeManager
             GUILayout.Space(10);
 
             var newAvatar = (GameObject)EditorGUILayout.ObjectField("选择模型：", avatar, typeof(GameObject), true);
+            
             if (avatar != newAvatar)
             {
                 avatar = newAvatar;
@@ -77,10 +78,29 @@ namespace VRCMemeManager
             }
             else
             {
+                if (parameter.menuName == null)
+                {
+                    parameter.menuName = "表情包";
+                }
+
+                if (parameter.menuPath == null)
+                {
+                    parameter.menuPath = "";
+                }
+
+
+                EditorGUI.BeginChangeCheck();
+                EditorGUILayout.BeginHorizontal();
+                EditorGUILayout.LabelField("表情包菜单生成的路径:", GUILayout.Width(150), GUILayout.ExpandWidth(false));
+                parameter.menuPath = EditorGUILayout.TextField(parameter.menuPath).Trim();
+                EditorGUILayout.EndHorizontal();
+                EditorGUILayout.BeginHorizontal();
+                EditorGUILayout.LabelField("表情包菜单的名字:", GUILayout.Width(150), GUILayout.ExpandWidth(false));
+                parameter.menuName = EditorGUILayout.TextField(parameter.menuName).Trim();
+                EditorGUILayout.EndHorizontal();
 
                 mainScrollPos = GUILayout.BeginScrollView(mainScrollPos);
                 // 主UI
-                EditorGUI.BeginChangeCheck();
                 var sum = parameter.memeList.Count;
                 if (sum == 0)
                 {
@@ -154,6 +174,8 @@ namespace VRCMemeManager
                             EditorGUILayout.BeginVertical();
                             EditorGUILayout.LabelField("分类", GUILayout.Width(55));
                             info.type = EditorGUILayout.TextField(info.type).Trim();
+                            EditorGUILayout.LabelField("表情发射时间(秒)", GUILayout.Width(120));
+                            info.playTime = float.Parse(EditorGUILayout.TextField(info.playTime.ToString()).Trim());
                             info.keepAspectRatio = EditorGUILayout.Toggle("保持长宽比：", info.keepAspectRatio);
                             info.isGIF = EditorGUILayout.Toggle("是否为动图：", info.isGIF);
                             if (info.isGIF)
